@@ -1,23 +1,19 @@
-from dataclasses import dataclass, field
+import uuid
 from datetime import datetime
-from enum import Enum
-from typing import Any, Optional
-from uuid import UUID, uuid4
+from typing import Any
 
+from sqlalchemy import String, DateTime, Text
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 
-class AuditAction(str, Enum):
-    CREATE = "create"
-    READ = "read"
-    UPDATE = "update"
-    DELETE = "delete"
+from backend.app.infrastructure.database import Base
 
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
 
-@dataclass
-class AuditEntry:
-    id: UUID = field(default_factory=uuid4)
-    entity_type: str = ""
-    entity_id: UUID = field(default_factory=uuid4)
-    action: AuditAction = AuditAction.READ
-    actor: Optional[str] = None
-    changes: Optional[dict[str, Any]] = None
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    entity_type: Mapped[str] = mapped_column(String, nullable=False)
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    action: Mapped[str] = mapped_column(String, nullable=False)
+    metadata_: Mapped[dict[str, Any]] = mapped_column("metadata", JSONB, nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)

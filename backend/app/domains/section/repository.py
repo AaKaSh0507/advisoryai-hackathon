@@ -1,32 +1,21 @@
-from abc import ABC, abstractmethod
-from typing import Optional
-from uuid import UUID
+from typing import Sequence, Optional
+import uuid
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from backend.app.domains.section.models import Section
 
+class SectionRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
 
-class SectionRepository(ABC):
-    @abstractmethod
-    async def get_by_id(self, section_id: UUID) -> Optional[Section]:
-        ...
+    async def create_batch(self, sections: list[Section]) -> list[Section]:
+        self.session.add_all(sections)
+        await self.session.flush()
+        return sections
 
-    @abstractmethod
-    async def get_by_template(
-        self, template_id: UUID, skip: int = 0, limit: int = 100
-    ) -> list[Section]:
-        ...
-
-    @abstractmethod
-    async def create(self, section: Section) -> Section:
-        ...
-
-    @abstractmethod
-    async def update(self, section: Section) -> Section:
-        ...
-
-    @abstractmethod
-    async def delete(self, section_id: UUID) -> bool:
-        ...
-
-    @abstractmethod
-    async def reorder(self, template_id: UUID, section_ids: list[UUID]) -> bool:
-        ...
+    async def get_by_template_version_id(self, template_version_id: uuid.UUID) -> Sequence[Section]:
+        stmt = select(Section).where(Section.template_version_id == template_version_id)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()

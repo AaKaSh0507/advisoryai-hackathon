@@ -5,4 +5,7 @@ python-dotenv==1.0.1
 psycopg[binary]==3.2.10
 redis==5.0.1
 boto3==1.34.34
-
+sqlalchemy==2.0.46
+alembic==1.18.3
+greenlet==3.0.3
+python-multipart==0.0.9

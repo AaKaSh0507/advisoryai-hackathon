@@ -6,9 +6,9 @@ from backend.app.worker.handlers.generation import GenerationHandler
 
 
 _handlers: dict[JobType, JobHandler] = {
-    JobType.PARSING: ParsingHandler(),
-    JobType.CLASSIFICATION: ClassificationHandler(),
-    JobType.GENERATION: GenerationHandler(),
+    JobType.PARSE: ParsingHandler(),
+    JobType.CLASSIFY: ClassificationHandler(),
+    JobType.GENERATE: GenerationHandler(),
 }
 
 

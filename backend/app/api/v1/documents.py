@@ -1,61 +1,58 @@
+from typing import Annotated
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from backend.app.domains.document.schemas import (
     DocumentCreate,
     DocumentResponse,
-    DocumentStatusResponse,
+    DocumentVersionResponse,
 )
 from backend.app.domains.document.service import DocumentService
+from backend.app.api.deps import get_document_service
 
 router = APIRouter()
-service = DocumentService()
-
-
-@router.get("", response_model=list[DocumentResponse])
-async def list_documents(skip: int = 0, limit: int = 100) -> list[DocumentResponse]:
-    documents = await service.list_documents(skip=skip, limit=limit)
-    return [DocumentResponse.model_validate(d) for d in documents]
-
+DocumentServiceDep = Annotated[DocumentService, Depends(get_document_service)]
 
 @router.post("", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
-async def upload_document(data: DocumentCreate) -> DocumentResponse:
-    document = await service.create_document(data)
-    return DocumentResponse.model_validate(document)
-
+async def create_document(
+    data: DocumentCreate,
+    service: DocumentServiceDep
+) -> DocumentResponse:
+    doc = await service.create_document(data)
+    await service.repo.session.commit()
+    await service.repo.session.refresh(doc)
+    return DocumentResponse.model_validate(doc)
 
 @router.get("/{document_id}", response_model=DocumentResponse)
-async def get_document(document_id: UUID) -> DocumentResponse:
-    document = await service.get_document(document_id)
-    if not document:
+async def get_document(
+    document_id: UUID,
+    service: DocumentServiceDep
+) -> DocumentResponse:
+    doc = await service.get_document(document_id)
+    if not doc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Document {document_id} not found",
         )
-    return DocumentResponse.model_validate(document)
+    return DocumentResponse.model_validate(doc)
 
+@router.get("/{document_id}/versions", response_model=list[DocumentVersionResponse])
+async def list_document_versions(
+    document_id: UUID,
+    service: DocumentServiceDep
+) -> list[DocumentVersionResponse]:
+    versions = await service.repo.list_versions(document_id)
+    return [DocumentVersionResponse.model_validate(v) for v in versions]
 
-@router.get("/{document_id}/status", response_model=DocumentStatusResponse)
-async def get_document_status(document_id: UUID) -> DocumentStatusResponse:
-    document = await service.get_document_status(document_id)
-    if not document:
+@router.get("/{document_id}/versions/{version_number}", response_model=DocumentVersionResponse)
+async def get_document_version(
+    document_id: UUID,
+    version_number: int,
+    service: DocumentServiceDep
+) -> DocumentVersionResponse:
+    version = await service.repo.get_version(document_id, version_number)
+    if not version:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Document {document_id} not found",
+            detail=f"Version {version_number} not found for document {document_id}",
         )
-    return DocumentStatusResponse(
-        id=document.id,
-        name=document.name,
-        status=document.status,
-        error_message=document.error_message,
-        updated_at=document.updated_at,
-    )
-
-
-@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_document(document_id: UUID) -> None:
-    deleted = await service.delete_document(document_id)
-    if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Document {document_id} not found",
-        )
+    return DocumentVersionResponse.model_validate(version)

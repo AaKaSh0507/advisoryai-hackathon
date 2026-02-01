@@ -1,32 +1,24 @@
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel, Field
-from backend.app.domains.document.models import DocumentStatus
-
+from pydantic import BaseModel, ConfigDict
 
 class DocumentCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=255)
-    content_type: Optional[str] = None
-
+    template_version_id: UUID
 
 class DocumentResponse(BaseModel):
     id: UUID
-    name: str
-    storage_path: Optional[str]
-    status: DocumentStatus
-    content_type: Optional[str]
-    size_bytes: int
-    error_message: Optional[str]
+    template_version_id: UUID
+    current_version: int
     created_at: datetime
-    updated_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)
 
-    model_config = {"from_attributes": True}
-
-
-class DocumentStatusResponse(BaseModel):
+class DocumentVersionResponse(BaseModel):
     id: UUID
-    name: str
-    status: DocumentStatus
-    error_message: Optional[str]
-    updated_at: datetime
+    document_id: UUID
+    version_number: int
+    output_doc_path: str
+    generation_metadata: dict
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

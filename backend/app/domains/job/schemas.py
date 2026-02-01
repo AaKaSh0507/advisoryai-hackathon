@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Optional
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from backend.app.domains.job.models import JobStatus, JobType
 
 
@@ -15,20 +15,19 @@ class JobResponse(BaseModel):
     job_type: JobType
     status: JobStatus
     payload: dict[str, Any]
-    result: Optional[dict[str, Any]]
-    error_message: Optional[str]
+    error: Optional[str] = None
     created_at: datetime
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
+    updated_at: datetime
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
 
 class JobStatusResponse(BaseModel):
     id: UUID
     job_type: JobType
     status: JobStatus
-    error_message: Optional[str]
+    error: Optional[str] = None
     created_at: datetime
-    started_at: Optional[datetime]
-    completed_at: Optional[datetime]
+    updated_at: datetime
+    
+    model_config = ConfigDict(from_attributes=True)

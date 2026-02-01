@@ -26,18 +26,25 @@ setup_logging(settings.log_dir)
 logger = get_logger("app.main")
 
 
-def verify_infrastructure() -> dict:
+async def verify_infrastructure() -> dict:
     logger.info("Starting infrastructure connectivity verification")
 
+    # DB check is async
+    db_status = await check_database_connectivity()
+    
+    # Redis and Storage checks are sync
+    redis_status = check_redis_connectivity(settings.redis_url)
+    storage_status = check_storage_connectivity(
+        settings.s3_endpoint_url,
+        settings.s3_access_key,
+        settings.s3_secret_key,
+        settings.s3_bucket_name,
+    )
+
     results = {
-        "database": check_database_connectivity(settings.database_url),
-        "redis": check_redis_connectivity(settings.redis_url),
-        "storage": check_storage_connectivity(
-            settings.s3_endpoint_url,
-            settings.s3_access_key,
-            settings.s3_secret_key,
-            settings.s3_bucket_name,
-        ),
+        "database": db_status,
+        "redis": redis_status,
+        "storage": storage_status,
     }
 
     all_healthy = all(results.values())
@@ -54,7 +61,7 @@ def verify_infrastructure() -> dict:
 async def lifespan(app: FastAPI):
     logger.info(f"Starting Template Intelligence Engine in {settings.app_env} environment")
     
-    connectivity = verify_infrastructure()
+    connectivity = await verify_infrastructure()
     app.state.infrastructure_status = connectivity
     
     yield

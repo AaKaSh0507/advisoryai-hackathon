@@ -1,26 +1,48 @@
-from abc import ABC, abstractmethod
-from typing import Optional
-from uuid import UUID
-from backend.app.domains.document.models import Document
+from typing import Sequence, Optional
+import uuid
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-class DocumentRepository(ABC):
-    @abstractmethod
-    async def get_by_id(self, document_id: UUID) -> Optional[Document]:
-        ...
+from backend.app.domains.document.models import Document, DocumentVersion
 
-    @abstractmethod
-    async def get_all(self, skip: int = 0, limit: int = 100) -> list[Document]:
-        ...
+class DocumentRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
 
-    @abstractmethod
     async def create(self, document: Document) -> Document:
-        ...
+        self.session.add(document)
+        await self.session.flush()
+        return document
 
-    @abstractmethod
-    async def update(self, document: Document) -> Document:
-        ...
+    async def get_by_id(self, document_id: uuid.UUID) -> Optional[Document]:
+        stmt = select(Document).where(Document.id == document_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
 
-    @abstractmethod
-    async def delete(self, document_id: UUID) -> bool:
-        ...
+    async def create_version(self, version: DocumentVersion) -> DocumentVersion:
+        self.session.add(version)
+        await self.session.flush()
+        return version
+
+    async def get_version(self, document_id: uuid.UUID, version_number: int) -> Optional[DocumentVersion]:
+        stmt = select(DocumentVersion).where(
+            DocumentVersion.document_id == document_id,
+            DocumentVersion.version_number == version_number
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_latest_version(self, document_id: uuid.UUID) -> Optional[DocumentVersion]:
+        stmt = select(DocumentVersion).where(
+            DocumentVersion.document_id == document_id
+        ).order_by(DocumentVersion.version_number.desc()).limit(1)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list_versions(self, document_id: uuid.UUID) -> Sequence[DocumentVersion]:
+        stmt = select(DocumentVersion).where(
+            DocumentVersion.document_id == document_id
+        ).order_by(DocumentVersion.version_number.desc())
+        result = await self.session.execute(stmt)
+        return result.scalars().all()

@@ -1,33 +1,26 @@
-from typing import Optional
+from typing import Optional, Sequence
 from uuid import UUID
-from backend.app.domains.section.models import Section
-from backend.app.domains.section.schemas import SectionCreate, SectionUpdate
 
+from backend.app.domains.section.models import Section
+from backend.app.domains.section.schemas import SectionCreate
+from backend.app.domains.section.repository import SectionRepository
 
 class SectionService:
-    async def get_section(self, section_id: UUID) -> Optional[Section]:
-        return None
-
-    async def list_sections_by_template(
-        self, template_id: UUID, skip: int = 0, limit: int = 100
-    ) -> list[Section]:
-        return []
+    def __init__(self, repo: SectionRepository):
+        self.repo = repo
 
     async def create_section(self, data: SectionCreate) -> Section:
-        return Section(
-            template_id=data.template_id,
-            name=data.name,
-            content=data.content,
-            order=data.order,
+        section = Section(
+            template_version_id=data.template_version_id,
+            section_type=data.section_type,
+            structural_path=data.structural_path,
+            prompt_config=data.prompt_config
         )
+        # We need to wrap single creation in list for batch repo method or add single create to repo.
+        # SectionRepository has create_batch.
+        # Let's use create_batch for single item
+        created = await self.repo.create_batch([section])
+        return created[0]
 
-    async def update_section(
-        self, section_id: UUID, data: SectionUpdate
-    ) -> Optional[Section]:
-        return None
-
-    async def delete_section(self, section_id: UUID) -> bool:
-        return False
-
-    async def reorder_sections(self, template_id: UUID, section_ids: list[UUID]) -> bool:
-        return False
+    async def get_sections_by_template_version(self, template_version_id: UUID) -> Sequence[Section]:
+        return await self.repo.get_by_template_version_id(template_version_id)

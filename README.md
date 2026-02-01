@@ -2,77 +2,33 @@
 
 Backend foundation for the AdvisoryAI Template Intelligence Platform.
 
-## Phase 0 - Foundation
+## Run the System
 
-This phase establishes the core infrastructure:
-- FastAPI application with health endpoints
-- PostgreSQL database connectivity
-- Redis connectivity
-- S3-compatible object storage connectivity
-- Structured file logging
-
-## Prerequisites
-
-- Python 3.11+
-- PostgreSQL
-- Redis
-- S3-compatible storage (e.g., MinIO for local development)
-
-## Setup
-
-1. Create and activate a virtual environment:
+### API Server
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # On macOS/Linux
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
 ```
 
-2. Install dependencies:
+### Background Worker
 
 ```bash
-pip install -r requirements.txt
+python -m backend.app.worker.main
 ```
 
-3. Configure environment variables:
+## Configuration
 
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
+The application is configured via environment variables.
 
-4. Start the application:
+### Required Environment Variables
 
-```bash
-uvicorn backend.app.main:app --reload
-```
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Basic health check |
-| `/health/infrastructure` | GET | Infrastructure connectivity status |
-
-## Project Structure
-
-```
-backend/
-└── app/
-    ├── main.py              # FastAPI application entry point
-    ├── config.py            # Environment configuration
-    ├── logging_config.py    # Structured logging setup
-    └── infrastructure/
-        ├── database.py      # PostgreSQL connectivity
-        ├── redis.py         # Redis connectivity
-        └── storage.py       # S3 connectivity
-```
-
-## Logging
-
-Logs are written to the configured `LOG_DIR` (default: `./logs/`):
-- `api.log` - API runtime logs
-- `worker.log` - Worker runtime logs
-- `errors.log` - Error-level logs
-
-All logs are in structured JSON format.
-
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `REDIS_URL` | Redis connection string |
+| `S3_ENDPOINT_URL` | S3-compatible storage endpoint |
+| `S3_ACCESS_KEY` | Storage access key |
+| `S3_SECRET_KEY` | Storage secret key |
+| `S3_BUCKET_NAME` | Storage bucket name |
+| `LOG_DIR` | Directory for log output (default: `./logs/`) |
+| `APP_ENV` | Environment name (e.g., `development`, `production`) |

@@ -1,15 +1,14 @@
-from backend.app.domains.audit.models import AuditEntry, AuditAction
+from backend.app.domains.audit.models import AuditLog
 from backend.app.domains.audit.schemas import (
-    AuditEntryResponse,
+    AuditLogResponse,
     AuditQuery,
 )
 from backend.app.domains.audit.service import AuditService
 from backend.app.domains.audit.repository import AuditRepository
 
 __all__ = [
-    "AuditEntry",
-    "AuditAction",
-    "AuditEntryResponse",
+    "AuditLog",
+    "AuditLogResponse",
     "AuditQuery",
     "AuditService",
     "AuditRepository",
