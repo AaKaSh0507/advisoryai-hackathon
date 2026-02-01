@@ -1,22 +1,20 @@
 import io
+import json
+import uuid
+from typing import Any, BinaryIO
+
 import boto3
+from backend.app.config import Settings
+from backend.app.logging_config import get_logger
 from botocore.config import Config
 from botocore.exceptions import ClientError, EndpointConnectionError, NoCredentialsError
-from typing import BinaryIO, Optional
-import uuid
-
-from backend.app.logging_config import get_logger
-from backend.app.config import Settings
 
 logger = get_logger("app.infrastructure.storage")
 
+
 class StorageService:
     def __init__(self, settings: Settings):
-        config = Config(
-            connect_timeout=2,
-            read_timeout=2,
-            retries={"max_attempts": 1}
-        )
+        config = Config(connect_timeout=2, read_timeout=2, retries={"max_attempts": 1})
         self.client = boto3.client(
             "s3",
             endpoint_url=settings.s3_endpoint_url,
@@ -26,39 +24,162 @@ class StorageService:
         )
         self.bucket_name = settings.s3_bucket_name
 
-    def upload_template_source(self, template_id: uuid.UUID, version: int, file_obj: BinaryIO) -> str:
+    # =========================================================================
+    # Template Storage
+    # =========================================================================
+
+    def upload_template_source(
+        self, template_id: uuid.UUID, version: int, file_obj: BinaryIO
+    ) -> str:
+        """
+        Upload template source document.
+
+        Authoritative path: templates/{template_id}/{version}/source.docx
+        """
         key = f"templates/{template_id}/{version}/source.docx"
-        self._upload_file(key, file_obj)
+        self._upload_file(
+            key,
+            file_obj,
+            content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
         return key
 
-    def upload_template_parsed(self, template_id: uuid.UUID, version: int, file_obj: BinaryIO) -> str:
+    def upload_template_parsed(
+        self, template_id: uuid.UUID, version: int, file_obj: BinaryIO
+    ) -> str:
+        """
+        Upload parsed representation.
+
+        Authoritative path: templates/{template_id}/{version}/parsed.json
+        """
         key = f"templates/{template_id}/{version}/parsed.json"
-        self._upload_file(key, file_obj)
+        self._upload_file(key, file_obj, content_type="application/json")
         return key
 
-    def upload_document_output(self, document_id: uuid.UUID, version: int, file_obj: BinaryIO) -> str:
+    def upload_template_parsed_json(
+        self, template_id: uuid.UUID, version: int, parsed_data: dict[str, Any]
+    ) -> str:
+        """
+        Upload parsed representation from dict.
+
+        Serializes the parsed document to JSON and uploads.
+        """
+        json_bytes = json.dumps(parsed_data, indent=2, default=str).encode("utf-8")
+        file_obj = io.BytesIO(json_bytes)
+        return self.upload_template_parsed(template_id, version, file_obj)
+
+    def get_template_source(self, template_id: uuid.UUID, version: int) -> bytes | None:
+        """
+        Get template source document content.
+
+        Returns None if file doesn't exist or on error.
+        """
+        key = f"templates/{template_id}/{version}/source.docx"
+        return self.get_file(key)
+
+    def get_template_parsed(self, template_id: uuid.UUID, version: int) -> dict[str, Any] | None:
+        """
+        Get parsed representation as dict.
+
+        Returns None if file doesn't exist or on error.
+        """
+        key = f"templates/{template_id}/{version}/parsed.json"
+        content = self.get_file(key)
+        if content:
+            try:
+                return json.loads(content.decode("utf-8"))
+            except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                logger.error(f"Failed to parse JSON from {key}: {e}")
+                return None
+        return None
+
+    def template_source_exists(self, template_id: uuid.UUID, version: int) -> bool:
+        """Check if template source document exists."""
+        key = f"templates/{template_id}/{version}/source.docx"
+        return self.file_exists(key)
+
+    def template_parsed_exists(self, template_id: uuid.UUID, version: int) -> bool:
+        """Check if parsed representation exists."""
+        key = f"templates/{template_id}/{version}/parsed.json"
+        return self.file_exists(key)
+
+    # =========================================================================
+    # Document Storage
+    # =========================================================================
+
+    def upload_document_output(
+        self, document_id: uuid.UUID, version: int, file_obj: BinaryIO
+    ) -> str:
         key = f"documents/{document_id}/{version}/output.docx"
-        self._upload_file(key, file_obj)
+        self._upload_file(
+            key,
+            file_obj,
+            content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
         return key
-    
-    def get_file(self, key: str) -> Optional[bytes]:
+
+    # =========================================================================
+    # Generic Operations
+    # =========================================================================
+
+    def get_file(self, key: str) -> bytes | None:
+        """Get file content from storage."""
         try:
             response = self.client.get_object(Bucket=self.bucket_name, Key=key)
             return response["Body"].read()
         except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            if error_code == "NoSuchKey":
+                logger.debug(f"File not found: {key}")
+            else:
+                logger.error(f"Failed to get file {key}: {e}")
+            return None
+        except Exception as e:
             logger.error(f"Failed to get file {key}: {e}")
             return None
 
-    def _upload_file(self, key: str, file_obj: BinaryIO):
+    def file_exists(self, key: str) -> bool:
+        """Check if a file exists in storage."""
+        try:
+            self.client.head_object(Bucket=self.bucket_name, Key=key)
+            return True
+        except ClientError as e:
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
+            if error_code == "404":
+                return False
+            logger.error(f"Error checking file existence {key}: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Error checking file existence {key}: {e}")
+            return False
+
+    def delete_file(self, key: str) -> bool:
+        """Delete a file from storage."""
+        try:
+            self.client.delete_object(Bucket=self.bucket_name, Key=key)
+            logger.info(f"Deleted file {key}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete file {key}: {e}")
+            return False
+
+    def _upload_file(self, key: str, file_obj: BinaryIO, content_type: str | None = None):
+        """Upload a file to storage."""
         try:
             # reset file pointer to beginning if possible
             if hasattr(file_obj, "seek"):
                 file_obj.seek(0)
-            self.client.upload_fileobj(file_obj, self.bucket_name, key)
+
+            extra_args = {}
+            if content_type:
+                extra_args["ContentType"] = content_type
+
+            self.client.upload_fileobj(file_obj, self.bucket_name, key, ExtraArgs=extra_args)
             logger.info(f"Uploaded file to {key}")
         except Exception as e:
             logger.error(f"Failed to upload file to {key}: {e}")
             raise e
+
 
 def check_storage_connectivity(
     endpoint_url: str,

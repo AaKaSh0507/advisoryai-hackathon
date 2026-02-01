@@ -1,0 +1,87 @@
+# Pre-commit configuration
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+
+default_language_version:
+  python: python3.11
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: debug-statements
+      - id: check-ast
+
+  # Python code formatting with Black
+  - repo: https://github.com/psf/black
+    rev: 24.1.1
+    hooks:
+      - id: black
+        language_version: python3.11
+        args: ['--line-length=100']
+        files: ^backend/
+
+  # Import sorting handled by ruff (below) with isort rules
+  # Disabled standalone isort to avoid conflicts with ruff's import sorting
+
+  # Linting with Ruff (fast Python linter - includes isort)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.2.1
+    hooks:
+      - id: ruff
+        args: ['--fix', '--exit-non-zero-on-fix']
+        files: ^backend/
+
+  # Type checking with mypy
+  # Note: Mypy is configured but disabled by default due to path complexity.
+  # Run manually: cd backend && python -m mypy app/
+  # - repo: local
+  #   hooks:
+  #     - id: mypy
+  #       name: mypy
+  #       entry: bash -c 'cd backend && python -m mypy app/ --ignore-missing-imports --no-strict-optional'
+  #       language: system
+  #       types: [python]
+  #       files: ^backend/app/
+  #       exclude: ^backend/tests/
+  #       pass_filenames: false
+
+  # Security checks with Bandit
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.7
+    hooks:
+      - id: bandit
+        args: ['-c', 'backend/pyproject.toml', '-r']
+        files: ^backend/app/
+        exclude: ^backend/tests/
+
+  # Dockerfile linting
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker
+        files: Dockerfile$
+
+  # Run tests before commit (optional - can be slow)
+  # Uncomment to enable test runs on every commit
+  # - repo: local
+  #   hooks:
+  #     - id: pytest
+  #       name: pytest
+  #       entry: bash -c 'cd backend && python -m pytest tests/ --tb=short -q'
+  #       language: system
+  #       pass_filenames: false
+  #       always_run: true
+  #       stages: [commit]
