@@ -1,0 +1,8 @@
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+pydantic-settings==2.1.0
+python-dotenv==1.0.1
+psycopg[binary]==3.2.10
+redis==5.0.1
+boto3==1.34.34
+
