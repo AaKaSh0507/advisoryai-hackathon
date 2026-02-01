@@ -1,5 +1,5 @@
 from backend.app.domains.job.models import JobType
-from backend.app.worker.handlers.base import JobHandler
+from backend.app.worker.handlers.base import JobHandler, HandlerContext, HandlerResult
 from backend.app.worker.handlers.parsing import ParsingHandler
 from backend.app.worker.handlers.classification import ClassificationHandler
 from backend.app.worker.handlers.generation import GenerationHandler
@@ -19,4 +19,9 @@ def get_handler_for_job_type(job_type: JobType) -> JobHandler:
     return handler
 
 
-__all__ = ["get_handler_for_job_type", "JobHandler"]
+__all__ = [
+    "get_handler_for_job_type",
+    "JobHandler",
+    "HandlerContext",
+    "HandlerResult",
+]

@@ -14,11 +14,8 @@ class SectionService:
             template_version_id=data.template_version_id,
             section_type=data.section_type,
             structural_path=data.structural_path,
-            prompt_config=data.prompt_config
+            prompt_config=data.prompt_config,
         )
-        # We need to wrap single creation in list for batch repo method or add single create to repo.
-        # SectionRepository has create_batch.
-        # Let's use create_batch for single item
         created = await self.repo.create_batch([section])
         return created[0]
 

@@ -1,9 +1,10 @@
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 from uuid import UUID
 
 from backend.app.domains.audit.models import AuditLog
 from backend.app.domains.audit.schemas import AuditQuery
 from backend.app.domains.audit.repository import AuditRepository
+
 
 class AuditService:
     def __init__(self, repo: AuditRepository):
@@ -20,13 +21,17 @@ class AuditService:
             entity_type=entity_type,
             entity_id=entity_id,
             action=action,
-            metadata_=metadata
+            metadata_=metadata,
         )
         return await self.repo.create(log)
 
     async def query_audit_log(self, query: AuditQuery) -> Sequence[AuditLog]:
-        # Implement filtering in repository if needed
-        # For now return empty or implement basic query in repo
-        # Repo currently only has create.
-        # Minimal viable: return empty list or add query_all to repo
-        return []
+        return await self.repo.query(
+            entity_type=query.entity_type,
+            entity_id=query.entity_id,
+            action=query.action,
+            from_timestamp=query.from_timestamp,
+            to_timestamp=query.to_timestamp,
+            skip=query.skip,
+            limit=query.limit,
+        )

@@ -64,6 +64,9 @@ dmypy.json
 logs/
 *.log
 
+# Redis dump
+dump.rdb
+
 # Environment variables
 .env
 .env.*

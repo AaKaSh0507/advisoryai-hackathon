@@ -1,7 +1,7 @@
-from typing import Optional, Sequence, BinaryIO
+from typing import Optional, BinaryIO
 from uuid import UUID
 
-from backend.app.domains.document.models import Document
+from backend.app.domains.document.models import Document, DocumentVersion
 from backend.app.domains.document.schemas import DocumentCreate
 from backend.app.domains.document.repository import DocumentRepository
 from backend.app.infrastructure.storage import StorageService
@@ -29,7 +29,6 @@ class DocumentService:
         )
         created_doc = await self.repo.create(doc)
 
-        # Audit Log
         audit_log = AuditLog(
             entity_type="DOCUMENT",
             entity_id=created_doc.id,
@@ -50,12 +49,10 @@ class DocumentService:
         latest_version = await self.repo.get_latest_version(document_id)
         version_number = (latest_version.version_number + 1) if latest_version else 1
 
-        # Upload to storage
         output_path = self.storage.upload_document_output(
             document_id=document_id, version=version_number, file_obj=file_obj
         )
 
-        # Create version in DB
         version = DocumentVersion(
             document_id=document_id,
             version_number=version_number,
@@ -64,11 +61,9 @@ class DocumentService:
         )
         created_version = await self.repo.create_version(version)
 
-        # Update document current version
         doc.current_version = version_number
         await self.repo.session.flush()
 
-        # Audit Log
         audit_log = AuditLog(
             entity_type="DOCUMENT_VERSION",
             entity_id=created_version.id,

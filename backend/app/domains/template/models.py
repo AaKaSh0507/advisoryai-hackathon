@@ -29,9 +29,6 @@ class TemplateVersion(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     template: Mapped["Template"] = relationship("Template", back_populates="versions")
-    
-    # Relationships for other domains can be added here as string references if needed, 
-    # but for now we keep it clean. Section and Document will reference this.
 
     __table_args__ = (
         UniqueConstraint("template_id", "version_number", name="uq_template_version"),

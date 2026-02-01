@@ -10,4 +10,5 @@ venv
 .git
 .gitignore
 logs
-backend/scripts
+dump.rdb
+README.md

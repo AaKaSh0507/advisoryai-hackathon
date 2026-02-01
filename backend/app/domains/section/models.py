@@ -22,7 +22,3 @@ class Section(Base):
     structural_path: Mapped[str] = mapped_column(String, nullable=False)
     prompt_config: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-
-    # We can define the relationship to TemplateVersion if needed, 
-    # but since they are in different modules, we might need a registry or import string.
-    # For now, strict FK is enough.

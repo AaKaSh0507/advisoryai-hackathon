@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from backend.app.config import get_settings
 from backend.app.logging_config import setup_logging, get_logger
 from backend.app.infrastructure.database import check_database_connectivity
-from backend.app.infrastructure.redis import check_redis_connectivity
+from backend.app.infrastructure.redis import check_redis_connectivity, get_redis_client
 from backend.app.infrastructure.storage import check_storage_connectivity
 from backend.app.api.v1 import router as api_v1_router
 
@@ -31,7 +31,7 @@ async def verify_infrastructure() -> dict:
 
     # DB check is async
     db_status = await check_database_connectivity()
-    
+
     # Redis and Storage checks are sync
     redis_status = check_redis_connectivity(settings.redis_url)
     storage_status = check_storage_connectivity(
@@ -60,19 +60,19 @@ async def verify_infrastructure() -> dict:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"Starting Template Intelligence Engine in {settings.app_env} environment")
-    
+
     connectivity = await verify_infrastructure()
     app.state.infrastructure_status = connectivity
-    
+
     yield
-    
+
     logger.info("Shutting down Template Intelligence Engine")
 
 
 app = FastAPI(
     title="Template Intelligence Engine",
-    description="AdvisoryAI Internal Platform - Phase 1 Domain Skeleton",
-    version="0.1.0",
+    description="AdvisoryAI Internal Platform - Job System and Pipeline Orchestration",
+    version="0.3.0",
     lifespan=lifespan,
 )
 
@@ -90,3 +90,23 @@ async def infrastructure_health() -> dict:
         "status": "healthy" if all(app.state.infrastructure_status.values()) else "degraded",
         "components": app.state.infrastructure_status,
     }
+
+
+@app.get("/health/workers")
+async def workers_health() -> dict:
+    """Get status of active workers."""
+    try:
+        redis_client = get_redis_client(settings.redis_url)
+        active_workers = redis_client.get_active_workers()
+        return {
+            "status": "healthy" if active_workers else "no_workers",
+            "active_workers": active_workers,
+            "count": len(active_workers),
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "active_workers": [],
+            "count": 0,
+        }
