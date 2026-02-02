@@ -76,7 +76,7 @@ class TestDeterminism:
 
             mock_output_repository.create_batch = AsyncMock(side_effect=capture_batch)
             mock_output_repository.create_outputs = AsyncMock(side_effect=capture_outputs)
-            mock_output_repository.update_output_content = AsyncMock(side_effect=content_tracker)
+            mock_output_repository.mark_output_validated = AsyncMock(side_effect=content_tracker)
             mock_output_repository.mark_output_failed = AsyncMock(return_value=MagicMock())
 
             final_batch = MagicMock()
@@ -144,14 +144,20 @@ class TestDeterminism:
             return outputs
 
         async def capture_hash(
-            output_id, generated_content, content_length, content_hash, metadata, completed_at
+            output_id,
+            generated_content,
+            content_length,
+            content_hash,
+            validation_result,
+            metadata,
+            completed_at,
         ):
             captured_hashes.append(content_hash)
             return MagicMock()
 
         mock_output_repository.create_batch = AsyncMock(side_effect=capture_batch)
         mock_output_repository.create_outputs = AsyncMock(side_effect=capture_outputs)
-        mock_output_repository.update_output_content = AsyncMock(side_effect=capture_hash)
+        mock_output_repository.mark_output_validated = AsyncMock(side_effect=capture_hash)
 
         final_batch = MagicMock()
         final_batch.id = uuid4()
@@ -250,7 +256,7 @@ class TestNoDuplication:
 
         mock_output_repository.create_batch = AsyncMock(side_effect=capture_batch)
         mock_output_repository.create_outputs = AsyncMock(side_effect=capture_outputs)
-        mock_output_repository.update_output_content = AsyncMock(return_value=MagicMock())
+        mock_output_repository.mark_output_validated = AsyncMock(return_value=MagicMock())
 
         final_batch = MagicMock()
         final_batch.id = uuid4()
@@ -316,7 +322,7 @@ class TestNoDuplication:
 
         mock_output_repository.create_batch = AsyncMock(side_effect=capture_batch)
         mock_output_repository.create_outputs = AsyncMock(side_effect=capture_outputs)
-        mock_output_repository.update_output_content = AsyncMock(return_value=MagicMock())
+        mock_output_repository.mark_output_validated = AsyncMock(return_value=MagicMock())
 
         final_batch = MagicMock()
         final_batch.id = uuid4()

@@ -12,6 +12,7 @@ from backend.app.domains.generation.section_output_errors import (
     DuplicateOutputBatchError,
 )
 from backend.app.domains.generation.section_output_models import (
+    FailureCategory,
     SectionGenerationStatus,
     SectionOutput,
     SectionOutputBatch,
@@ -19,13 +20,19 @@ from backend.app.domains.generation.section_output_models import (
 from backend.app.domains.generation.section_output_repository import SectionOutputRepository
 from backend.app.domains.generation.section_output_schemas import (
     ContentConstraints,
-    ContentValidator,
     ExecuteSectionGenerationRequest,
     ExecuteSectionGenerationResponse,
     LLMInvocationRequest,
     SectionGenerationResult,
     SectionOutputResponse,
 )
+from backend.app.domains.generation.validation_schemas import (
+    FailureType,
+    QualityCheckConfig,
+    RetryPolicy,
+    StructuralValidationConfig,
+)
+from backend.app.domains.generation.validation_service import GenerationValidationService
 from backend.app.logging_config import get_logger
 
 logger = get_logger("app.domains.generation.section_output_service")
@@ -37,10 +44,28 @@ class SectionGenerationService:
         output_repo: SectionOutputRepository,
         input_repo: GenerationInputRepository,
         llm_client: BaseLLMClient,
+        retry_policy: RetryPolicy | None = None,
+        structural_config: StructuralValidationConfig | None = None,
+        quality_config: QualityCheckConfig | None = None,
     ):
         self.output_repo = output_repo
         self.input_repo = input_repo
         self.llm_client = llm_client
+        self.retry_policy = retry_policy or RetryPolicy()
+        self.structural_config = structural_config
+        self.quality_config = quality_config
+
+    def _create_validation_service(
+        self,
+        constraints: ContentConstraints,
+    ) -> GenerationValidationService:
+        return GenerationValidationService(
+            min_length=constraints.min_length,
+            max_length=constraints.max_length,
+            structural_config=self.structural_config,
+            quality_config=self.quality_config,
+            retry_policy=self.retry_policy,
+        )
 
     async def execute_section_generation(
         self,
@@ -67,7 +92,7 @@ class SectionGenerationService:
             request.constraints,
         )
 
-        completed_count = sum(1 for r in results if r.status == "COMPLETED")
+        completed_count = sum(1 for r in results if r.status in ("COMPLETED", "VALIDATED"))
         failed_count = sum(1 for r in results if r.status == "FAILED")
 
         await self.output_repo.update_batch_progress(
@@ -160,47 +185,141 @@ class SectionGenerationService:
         gen_input: GenerationInput,
         constraints: ContentConstraints,
     ) -> SectionGenerationResult:
-        try:
-            prompt_text = self._assemble_prompt(gen_input)
+        validation_service = self._create_validation_service(constraints)
+        current_attempt = output.retry_count or 0
 
-            invocation_request = LLMInvocationRequest(
-                generation_input_id=gen_input.id,
-                section_id=gen_input.section_id,
-                prompt_text=prompt_text,
-                constraints=constraints,
-            )
-
-            llm_result = await self.llm_client.invoke(invocation_request)
-
-            if not llm_result.is_successful:
-                return await self._handle_llm_failure(output, gen_input, llm_result.error_message)
-
-            validator = ContentValidator(constraints)
-            validation_result = validator.validate(llm_result.raw_output)
-
-            if not validation_result.is_valid:
-                return await self._handle_validation_failure(
+        while current_attempt <= self.retry_policy.max_retries:
+            try:
+                result = await self._attempt_generation(
                     output,
                     gen_input,
-                    validation_result.rejection_reason,
-                    validation_result.rejection_code,
-                    validation_result.constraint_violations,
+                    constraints,
+                    validation_service,
+                    current_attempt,
                 )
 
-            content = validation_result.validated_content or ""
-            return await self._persist_successful_output(
+                if result.status in ("COMPLETED", "VALIDATED"):
+                    return result
+
+                if result.error_code and not self._is_retryable_error(
+                    result.error_code,
+                    current_attempt,
+                ):
+                    return result
+
+                current_attempt += 1
+                if current_attempt > self.retry_policy.max_retries:
+                    return await self._handle_retry_exhaustion(
+                        output,
+                        gen_input,
+                        result.error_message or "Max retries exceeded",
+                        current_attempt - 1,
+                    )
+
+                await self._record_retry_attempt(
+                    output,
+                    result.error_code or "UNKNOWN",
+                    result.error_message or "Unknown error",
+                    current_attempt - 1,
+                )
+
+            except Exception as e:
+                logger.error(
+                    f"Unexpected error generating section {gen_input.section_id}: {e}",
+                    exc_info=True,
+                )
+                return await self._handle_unexpected_error(output, gen_input, str(e))
+
+        return await self._handle_retry_exhaustion(
+            output,
+            gen_input,
+            "Max retries exceeded without success",
+            current_attempt,
+        )
+
+    async def _attempt_generation(
+        self,
+        output: SectionOutput,
+        gen_input: GenerationInput,
+        constraints: ContentConstraints,
+        validation_service: GenerationValidationService,
+        attempt_number: int,
+    ) -> SectionGenerationResult:
+        prompt_text = self._assemble_prompt(gen_input)
+
+        invocation_request = LLMInvocationRequest(
+            generation_input_id=gen_input.id,
+            section_id=gen_input.section_id,
+            prompt_text=prompt_text,
+            constraints=constraints,
+        )
+
+        llm_result = await self.llm_client.invoke(invocation_request)
+
+        if not llm_result.is_successful:
+            return await self._handle_llm_failure(
                 output,
                 gen_input,
-                content,
-                llm_result.invocation_metadata,
+                llm_result.error_message,
+                attempt_number,
             )
 
-        except Exception as e:
-            logger.error(
-                f"Unexpected error generating section {gen_input.section_id}: {e}",
-                exc_info=True,
+        validation_result = validation_service.validate_content(llm_result.raw_output)
+
+        if not validation_result.is_valid:
+            return await self._handle_validation_failure(
+                output,
+                gen_input,
+                validation_result,
+                attempt_number,
             )
-            return await self._handle_unexpected_error(output, gen_input, str(e))
+
+        content = validation_result.validated_content or ""
+        return await self._persist_validated_output(
+            output,
+            gen_input,
+            content,
+            validation_result,
+            llm_result.invocation_metadata,
+            attempt_number,
+        )
+
+    def _is_retryable_error(self, error_code: str, current_attempt: int) -> bool:
+        non_retryable_codes = {
+            "STRUCTURAL_VIOLATION",
+            "QUALITY_FAILURE",
+            "VALIDATION_FAILURE",
+            "CONTAINS_MARKUP",
+            "CONTAINS_TAGS",
+            "CONTAINS_HEADERS",
+            "STRUCTURAL_MODIFICATION",
+        }
+        if error_code in non_retryable_codes:
+            return False
+        if current_attempt >= self.retry_policy.max_retries:
+            return False
+        return True
+
+    async def _record_retry_attempt(
+        self,
+        output: SectionOutput,
+        error_code: str,
+        error_message: str,
+        attempt_number: int,
+    ) -> None:
+        retry_entry = {
+            "attempt": attempt_number,
+            "error_code": error_code,
+            "error_message": error_message,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        await self.output_repo.increment_retry_count(
+            output_id=output.id,
+            failure_category=FailureCategory.GENERATION_FAILURE.value,
+            error_message=error_message,
+            error_code=error_code,
+            retry_entry=retry_entry,
+        )
 
     def _assemble_prompt(self, gen_input: GenerationInput) -> str:
         prompt_config = gen_input.prompt_config
@@ -238,27 +357,40 @@ class SectionGenerationService:
 
         return "\n".join(prompt_parts)
 
-    async def _persist_successful_output(
+    async def _persist_validated_output(
         self,
         output: SectionOutput,
         gen_input: GenerationInput,
         content: str,
+        validation_result: Any,
         invocation_metadata: dict[str, Any],
+        attempt_number: int,
     ) -> SectionGenerationResult:
         content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
         content_length = len(content)
+
+        validation_data = {
+            "is_valid": validation_result.is_valid,
+            "error_codes": [c.value for c in validation_result.all_error_codes],
+            "structural_valid": validation_result.structural_result.is_valid,
+            "bounds_valid": validation_result.bounds_result.is_valid,
+            "quality_valid": validation_result.quality_result.is_valid,
+        }
 
         metadata = {
             "invocation": invocation_metadata,
             "input_hash": gen_input.input_hash,
             "structural_path": gen_input.structural_path,
+            "attempt_number": attempt_number,
+            "validation": validation_data,
         }
 
-        await self.output_repo.update_output_content(
+        await self.output_repo.mark_output_validated(
             output_id=output.id,
             generated_content=content,
             content_length=content_length,
             content_hash=content_hash,
+            validation_result=validation_data,
             metadata=metadata,
             completed_at=datetime.utcnow(),
         )
@@ -266,7 +398,7 @@ class SectionGenerationService:
         return SectionGenerationResult(
             generation_input_id=gen_input.id,
             section_id=gen_input.section_id,
-            status="COMPLETED",
+            status="VALIDATED",
             generated_content=content,
             content_length=content_length,
             content_hash=content_hash,
@@ -278,26 +410,29 @@ class SectionGenerationService:
         output: SectionOutput,
         gen_input: GenerationInput,
         error_message: str | None,
+        attempt_number: int = 0,
     ) -> SectionGenerationResult:
         error_msg = error_message or "LLM invocation failed"
+        is_retryable = self._is_retryable_error("LLM_FAILURE", attempt_number)
         metadata = {
             "input_hash": gen_input.input_hash,
             "structural_path": gen_input.structural_path,
-            "failure_type": "llm_invocation",
+            "failure_type": FailureCategory.GENERATION_FAILURE.value,
+            "attempt_number": attempt_number,
         }
 
-        await self.output_repo.mark_output_failed(
-            output_id=output.id,
-            error_message=error_msg,
-            error_code="LLM_INVOCATION_FAILED",
-            metadata=metadata,
-            completed_at=datetime.utcnow(),
-        )
+        if not is_retryable:
+            await self.output_repo.mark_retry_exhausted(
+                output_id=output.id,
+                error_message=f"Retry exhausted after {attempt_number + 1} attempts: {error_msg}",
+                metadata=metadata,
+                completed_at=datetime.utcnow(),
+            )
 
         return SectionGenerationResult(
             generation_input_id=gen_input.id,
             section_id=gen_input.section_id,
-            status="FAILED",
+            status="RETRY" if is_retryable else "FAILED",
             error_message=error_msg,
             error_code="LLM_INVOCATION_FAILED",
             metadata=metadata,
@@ -307,23 +442,69 @@ class SectionGenerationService:
         self,
         output: SectionOutput,
         gen_input: GenerationInput,
-        rejection_reason: str | None,
-        rejection_code: str | None,
-        violations: list[str],
+        validation_result: Any,
+        attempt_number: int = 0,
     ) -> SectionGenerationResult:
-        error_msg = rejection_reason or "Content validation failed"
-        error_code = rejection_code or "VALIDATION_FAILED"
+        error_msg = validation_result.rejection_reason or "Content validation failed"
+        failure_type = validation_result.failure_type or FailureType.VALIDATION_FAILURE
+        error_codes = [c.value for c in validation_result.all_error_codes]
+
+        error_code = failure_type.value
+        if error_codes:
+            error_code = error_codes[0]
+
         metadata = {
             "input_hash": gen_input.input_hash,
             "structural_path": gen_input.structural_path,
-            "failure_type": "validation",
-            "violations": violations,
+            "failure_type": failure_type.value,
+            "violations": validation_result.all_violations,
+            "error_codes": error_codes,
+            "attempt_number": attempt_number,
+            "is_retryable": validation_result.is_retryable,
         }
 
-        await self.output_repo.mark_output_failed(
-            output_id=output.id,
+        is_retryable = validation_result.is_retryable and self._is_retryable_error(
+            error_code,
+            attempt_number,
+        )
+
+        if not is_retryable:
+            await self.output_repo.mark_output_failed(
+                output_id=output.id,
+                error_message=error_msg,
+                error_code=error_code,
+                metadata=metadata,
+                completed_at=datetime.utcnow(),
+            )
+
+        return SectionGenerationResult(
+            generation_input_id=gen_input.id,
+            section_id=gen_input.section_id,
+            status="RETRY" if is_retryable else "FAILED",
             error_message=error_msg,
             error_code=error_code,
+            metadata=metadata,
+        )
+
+    async def _handle_retry_exhaustion(
+        self,
+        output: SectionOutput,
+        gen_input: GenerationInput,
+        last_error: str,
+        total_attempts: int,
+    ) -> SectionGenerationResult:
+        error_msg = f"Retry exhausted after {total_attempts} attempts: {last_error}"
+        metadata = {
+            "input_hash": gen_input.input_hash,
+            "structural_path": gen_input.structural_path,
+            "failure_type": FailureCategory.RETRY_EXHAUSTION.value,
+            "total_attempts": total_attempts,
+            "last_error": last_error,
+        }
+
+        await self.output_repo.mark_retry_exhausted(
+            output_id=output.id,
+            error_message=error_msg,
             metadata=metadata,
             completed_at=datetime.utcnow(),
         )
@@ -333,7 +514,7 @@ class SectionGenerationService:
             section_id=gen_input.section_id,
             status="FAILED",
             error_message=error_msg,
-            error_code=error_code,
+            error_code="RETRY_EXHAUSTED",
             metadata=metadata,
         )
 
@@ -433,3 +614,47 @@ class SectionGenerationService:
             if output.section_id == section_id:
                 return output
         return None
+
+    async def get_validated_outputs(self, batch_id: UUID) -> list[SectionOutput]:
+        outputs = await self.output_repo.get_validated_outputs(batch_id)
+        return list(outputs)
+
+    async def get_failed_outputs(self, batch_id: UUID) -> list[SectionOutput]:
+        outputs = await self.output_repo.get_failed_outputs(batch_id)
+        return list(outputs)
+
+    async def get_outputs_by_failure_category(
+        self,
+        batch_id: UUID,
+        failure_category: str,
+    ) -> list[SectionOutput]:
+        outputs = await self.output_repo.get_outputs_by_failure_category(
+            batch_id,
+            failure_category,
+        )
+        return list(outputs)
+
+    async def get_retryable_outputs(self, batch_id: UUID) -> list[SectionOutput]:
+        outputs = await self.output_repo.get_retryable_outputs(batch_id)
+        return list(outputs)
+
+    async def is_batch_ready_for_assembly(self, batch_id: UUID) -> bool:
+        batch = await self.output_repo.get_batch_by_id(batch_id, include_outputs=True)
+        if not batch:
+            return False
+
+        if not batch.is_immutable:
+            return False
+
+        for output in batch.outputs:
+            if not output.is_ready_for_assembly:
+                return False
+
+        return True
+
+    async def get_assembly_ready_outputs(self, batch_id: UUID) -> list[SectionOutput]:
+        batch = await self.output_repo.get_batch_by_id(batch_id, include_outputs=True)
+        if not batch:
+            return []
+
+        return [out for out in batch.outputs if out.is_ready_for_assembly]

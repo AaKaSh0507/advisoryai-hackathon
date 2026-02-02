@@ -17,6 +17,18 @@ class SectionGenerationStatus(str, PyEnum):
     IN_PROGRESS = "IN_PROGRESS"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+    RETRYING = "RETRYING"
+    VALIDATED = "VALIDATED"
+
+
+class FailureCategory(str, PyEnum):
+    VALIDATION_FAILURE = "VALIDATION_FAILURE"
+    GENERATION_FAILURE = "GENERATION_FAILURE"
+    RETRY_EXHAUSTION = "RETRY_EXHAUSTION"
+    STRUCTURAL_VIOLATION = "STRUCTURAL_VIOLATION"
+    BOUNDS_VIOLATION = "BOUNDS_VIOLATION"
+    QUALITY_FAILURE = "QUALITY_FAILURE"
+    UNEXPECTED_ERROR = "UNEXPECTED_ERROR"
 
 
 class SectionOutputBatch(Base):
@@ -90,10 +102,17 @@ class SectionOutput(Base):
     content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     error_message: Mapped[str | None] = mapped_column(String, nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    failure_category: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_retries: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    retry_history: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    is_validated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    validation_result: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     generation_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     is_immutable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    validated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     batch: Mapped["SectionOutputBatch"] = relationship(
         "SectionOutputBatch", back_populates="outputs"
@@ -104,12 +123,42 @@ class SectionOutput(Base):
         Index("ix_section_outputs_section", "section_id"),
         Index("ix_section_outputs_generation_input", "generation_input_id"),
         Index("ix_section_outputs_batch_sequence", "batch_id", "sequence_order"),
+        Index("ix_section_outputs_failure_category", "failure_category"),
+        Index("ix_section_outputs_status", "status"),
     )
 
     @property
     def is_successful(self) -> bool:
-        return bool(self.status == SectionGenerationStatus.COMPLETED and self.generated_content)
+        return bool(
+            self.status in (SectionGenerationStatus.COMPLETED, SectionGenerationStatus.VALIDATED)
+            and self.generated_content
+        )
 
     @property
     def is_failed(self) -> bool:
         return bool(self.status == SectionGenerationStatus.FAILED)
+
+    @property
+    def is_retry_exhausted(self) -> bool:
+        return bool(self.retry_count >= self.max_retries)
+
+    @property
+    def can_retry(self) -> bool:
+        return bool(
+            not self.is_immutable
+            and self.retry_count < self.max_retries
+            and self.failure_category
+            in (
+                FailureCategory.GENERATION_FAILURE.value,
+                FailureCategory.BOUNDS_VIOLATION.value,
+            )
+        )
+
+    @property
+    def is_ready_for_assembly(self) -> bool:
+        return bool(
+            self.is_validated
+            and self.is_immutable
+            and self.generated_content
+            and self.status == SectionGenerationStatus.VALIDATED
+        )

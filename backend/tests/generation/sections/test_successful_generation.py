@@ -47,7 +47,13 @@ class TestSuccessfulGeneration:
         completed_outputs = []
 
         async def track_completion(
-            output_id, generated_content, content_length, content_hash, metadata, completed_at
+            output_id,
+            generated_content,
+            content_length,
+            content_hash,
+            validation_result,
+            metadata,
+            completed_at,
         ):
             completed_outputs.append(
                 {
@@ -58,7 +64,7 @@ class TestSuccessfulGeneration:
             )
             return MagicMock()
 
-        mock_output_repository.update_output_content = AsyncMock(side_effect=track_completion)
+        mock_output_repository.mark_output_validated = AsyncMock(side_effect=track_completion)
 
         def build_final_batch(*args, **kwargs):
             final_batch = MagicMock()
@@ -134,7 +140,13 @@ class TestSuccessfulGeneration:
         mock_output_repository.create_outputs = AsyncMock(side_effect=capture_outputs)
 
         async def capture_persistence(
-            output_id, generated_content, content_length, content_hash, metadata, completed_at
+            output_id,
+            generated_content,
+            content_length,
+            content_hash,
+            validation_result,
+            metadata,
+            completed_at,
         ):
             persisted_data.append(
                 {
@@ -147,7 +159,7 @@ class TestSuccessfulGeneration:
             )
             return MagicMock()
 
-        mock_output_repository.update_output_content = AsyncMock(side_effect=capture_persistence)
+        mock_output_repository.mark_output_validated = AsyncMock(side_effect=capture_persistence)
 
         final_batch = MagicMock()
         final_batch.id = created_batch.id
@@ -201,7 +213,7 @@ class TestSuccessfulGeneration:
 
         mock_output_repository.create_batch = AsyncMock(side_effect=capture_batch)
         mock_output_repository.create_outputs = AsyncMock(side_effect=capture_outputs)
-        mock_output_repository.update_output_content = AsyncMock(return_value=MagicMock())
+        mock_output_repository.mark_output_validated = AsyncMock(return_value=MagicMock())
 
         final_batch = MagicMock()
         final_batch.id = uuid4()
@@ -284,7 +296,7 @@ class TestSuccessfulGeneration:
 
         mock_output_repository.create_batch = AsyncMock(side_effect=capture_batch)
         mock_output_repository.create_outputs = AsyncMock(side_effect=capture_outputs)
-        mock_output_repository.update_output_content = AsyncMock(return_value=MagicMock())
+        mock_output_repository.mark_output_validated = AsyncMock(return_value=MagicMock())
 
         final_batch = MagicMock()
         final_batch.id = uuid4()

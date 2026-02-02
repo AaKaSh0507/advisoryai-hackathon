@@ -55,7 +55,13 @@ class TestFailureIsolation:
         failed_sections = []
 
         async def track_success(
-            output_id, generated_content, content_length, content_hash, metadata, completed_at
+            output_id,
+            generated_content,
+            content_length,
+            content_hash,
+            validation_result,
+            metadata,
+            completed_at,
         ):
             successful_sections.append(output_id)
             return MagicMock()
@@ -64,8 +70,14 @@ class TestFailureIsolation:
             failed_sections.append(output_id)
             return MagicMock()
 
-        mock_output_repository.update_output_content = AsyncMock(side_effect=track_success)
+        async def track_retry_exhausted(output_id, error_message, metadata, completed_at):
+            failed_sections.append(output_id)
+            return MagicMock()
+
+        mock_output_repository.mark_output_validated = AsyncMock(side_effect=track_success)
         mock_output_repository.mark_output_failed = AsyncMock(side_effect=track_failure)
+        mock_output_repository.mark_retry_exhausted = AsyncMock(side_effect=track_retry_exhausted)
+        mock_output_repository.increment_retry_count = AsyncMock(return_value=MagicMock())
 
         final_batch = MagicMock()
         final_batch.id = uuid4()
@@ -143,8 +155,15 @@ class TestFailureIsolation:
             failed_count += 1
             return MagicMock()
 
-        mock_output_repository.update_output_content = AsyncMock(side_effect=track_success)
+        async def track_retry_exhausted(*args, **kwargs):
+            nonlocal failed_count
+            failed_count += 1
+            return MagicMock()
+
+        mock_output_repository.mark_output_validated = AsyncMock(side_effect=track_success)
         mock_output_repository.mark_output_failed = AsyncMock(side_effect=track_failure)
+        mock_output_repository.mark_retry_exhausted = AsyncMock(side_effect=track_retry_exhausted)
+        mock_output_repository.increment_retry_count = AsyncMock(return_value=MagicMock())
 
         final_batch = MagicMock()
         final_batch.id = uuid4()
@@ -220,8 +239,21 @@ class TestFailureIsolation:
             )
             return MagicMock()
 
-        mock_output_repository.update_output_content = AsyncMock(return_value=MagicMock())
+        async def capture_retry_exhausted(output_id, error_message, metadata, completed_at):
+            failure_details.append(
+                {
+                    "output_id": output_id,
+                    "error_message": error_message,
+                    "error_code": "RETRY_EXHAUSTED",
+                    "metadata": metadata,
+                }
+            )
+            return MagicMock()
+
+        mock_output_repository.mark_output_validated = AsyncMock(return_value=MagicMock())
         mock_output_repository.mark_output_failed = AsyncMock(side_effect=capture_failure)
+        mock_output_repository.mark_retry_exhausted = AsyncMock(side_effect=capture_retry_exhausted)
+        mock_output_repository.increment_retry_count = AsyncMock(return_value=MagicMock())
 
         final_batch = MagicMock()
         final_batch.id = uuid4()
@@ -248,7 +280,7 @@ class TestFailureIsolation:
         assert len(failure_details) == 1
         failure = failure_details[0]
         assert failure["error_message"] is not None
-        assert failure["error_code"] == "LLM_INVOCATION_FAILED"
+        assert failure["error_code"] == "RETRY_EXHAUSTED"
         assert "failure_type" in failure["metadata"]
 
     @pytest.mark.asyncio
@@ -286,7 +318,7 @@ class TestFailureIsolation:
 
         mock_output_repository.create_batch = AsyncMock(side_effect=capture_batch)
         mock_output_repository.create_outputs = AsyncMock(side_effect=capture_outputs)
-        mock_output_repository.update_output_content = AsyncMock(return_value=MagicMock())
+        mock_output_repository.mark_output_validated = AsyncMock(return_value=MagicMock())
         mock_output_repository.mark_output_failed = AsyncMock(return_value=MagicMock())
 
         final_batch = MagicMock()
@@ -361,12 +393,18 @@ class TestFailureIsolation:
         persisted_content = {}
 
         async def track_success(
-            output_id, generated_content, content_length, content_hash, metadata, completed_at
+            output_id,
+            generated_content,
+            content_length,
+            content_hash,
+            validation_result,
+            metadata,
+            completed_at,
         ):
             persisted_content[output_id] = generated_content
             return MagicMock()
 
-        mock_output_repository.update_output_content = AsyncMock(side_effect=track_success)
+        mock_output_repository.mark_output_validated = AsyncMock(side_effect=track_success)
         mock_output_repository.mark_output_failed = AsyncMock(return_value=MagicMock())
 
         final_batch = MagicMock()

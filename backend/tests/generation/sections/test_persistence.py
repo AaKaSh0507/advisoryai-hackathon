@@ -45,7 +45,7 @@ class TestPersistence:
 
         mock_output_repository.create_batch = AsyncMock(side_effect=capture_batch)
         mock_output_repository.create_outputs = AsyncMock(side_effect=capture_outputs)
-        mock_output_repository.update_output_content = AsyncMock(return_value=MagicMock())
+        mock_output_repository.mark_output_validated = AsyncMock(return_value=MagicMock())
 
         final_batch = MagicMock()
         final_batch.id = uuid4()
@@ -98,7 +98,7 @@ class TestPersistence:
 
         mock_output_repository.create_batch = AsyncMock(side_effect=capture_batch)
         mock_output_repository.create_outputs = AsyncMock(side_effect=capture_outputs)
-        mock_output_repository.update_output_content = AsyncMock(return_value=MagicMock())
+        mock_output_repository.mark_output_validated = AsyncMock(return_value=MagicMock())
 
         final_batch = MagicMock()
         final_batch.id = uuid4()
@@ -148,12 +148,18 @@ class TestPersistence:
         persisted_metadata = []
 
         async def capture_content(
-            output_id, generated_content, content_length, content_hash, metadata, completed_at
+            output_id,
+            generated_content,
+            content_length,
+            content_hash,
+            validation_result,
+            metadata,
+            completed_at,
         ):
             persisted_metadata.append(metadata)
             return MagicMock()
 
-        mock_output_repository.update_output_content = AsyncMock(side_effect=capture_content)
+        mock_output_repository.mark_output_validated = AsyncMock(side_effect=capture_content)
 
         final_batch = MagicMock()
         final_batch.id = uuid4()
@@ -203,7 +209,7 @@ class TestPersistence:
 
         mock_output_repository.create_batch = AsyncMock(side_effect=capture_batch)
         mock_output_repository.create_outputs = AsyncMock(side_effect=capture_outputs)
-        mock_output_repository.update_output_content = AsyncMock(return_value=MagicMock())
+        mock_output_repository.mark_output_validated = AsyncMock(return_value=MagicMock())
 
         progress_updates = []
 
@@ -322,12 +328,18 @@ class TestOutputImmutability:
         update_calls = []
 
         async def track_update(
-            output_id, generated_content, content_length, content_hash, metadata, completed_at
+            output_id,
+            generated_content,
+            content_length,
+            content_hash,
+            validation_result,
+            metadata,
+            completed_at,
         ):
             update_calls.append(output_id)
             return MagicMock()
 
-        mock_output_repository.update_output_content = AsyncMock(side_effect=track_update)
+        mock_output_repository.mark_output_validated = AsyncMock(side_effect=track_update)
 
         final_outputs = [
             MagicMock(
