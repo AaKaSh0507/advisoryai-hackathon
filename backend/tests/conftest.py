@@ -45,9 +45,10 @@ from backend.app.domains.generation.models import (  # noqa: E402, F401
     GenerationInput,
     GenerationInputBatch,
 )
-
-# Import all models to register them with Base.metadata
-# This is necessary for create_all to create the tables
+from backend.app.domains.generation.section_output_models import (  # noqa: E402, F401
+    SectionOutput,
+    SectionOutputBatch,
+)
 from backend.app.infrastructure.database import Base  # noqa: E402
 
 # ============================================================================
