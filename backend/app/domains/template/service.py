@@ -1,19 +1,17 @@
-from typing import Optional, Sequence, BinaryIO
+from typing import BinaryIO, Optional, Sequence
 from uuid import UUID
 
-from backend.app.domains.template.models import Template, TemplateVersion
-from backend.app.domains.template.schemas import TemplateCreate, TemplateUpdate
-from backend.app.domains.template.repository import TemplateRepository
-from backend.app.infrastructure.storage import StorageService
-from backend.app.domains.audit.repository import AuditRepository
 from backend.app.domains.audit.models import AuditLog
+from backend.app.domains.audit.repository import AuditRepository
+from backend.app.domains.template.models import Template, TemplateVersion
+from backend.app.domains.template.repository import TemplateRepository
+from backend.app.domains.template.schemas import TemplateCreate, TemplateUpdate
+from backend.app.infrastructure.storage import StorageService
+
 
 class TemplateService:
     def __init__(
-        self, 
-        repo: TemplateRepository, 
-        storage: StorageService,
-        audit_repo: AuditRepository
+        self, repo: TemplateRepository, storage: StorageService, audit_repo: AuditRepository
     ):
         self.repo = repo
         self.storage = storage
@@ -28,21 +26,16 @@ class TemplateService:
     async def create_template(self, data: TemplateCreate) -> Template:
         template = Template(name=data.name)
         created_template = await self.repo.create(template)
-        
-        # Audit Log
         audit_log = AuditLog(
             entity_type="TEMPLATE",
             entity_id=created_template.id,
             action="CREATE",
-            metadata_={"name": data.name}
+            metadata_={"name": data.name},
         )
         await self.audit_repo.create(audit_log)
-
         return created_template
 
-    async def update_template(
-        self, template_id: UUID, data: TemplateUpdate
-    ) -> Optional[Template]:
+    async def update_template(self, template_id: UUID, data: TemplateUpdate) -> Optional[Template]:
         template = await self.repo.get_by_id(template_id)
         if not template:
             return None
@@ -67,21 +60,15 @@ class TemplateService:
 
         latest_version = await self.repo.get_latest_version(template_id)
         version_number = (latest_version.version_number + 1) if latest_version else 1
-
-        # Upload to storage
         source_path = self.storage.upload_template_source(
             template_id=template_id, version=version_number, file_obj=file_obj
         )
-
-        # Create version in DB
         version = TemplateVersion(
             template_id=template_id,
             version_number=version_number,
             source_doc_path=source_path,
         )
         created_version = await self.repo.create_version(version)
-
-        # Audit Log
         audit_log = AuditLog(
             entity_type="TEMPLATE_VERSION",
             entity_id=created_version.id,

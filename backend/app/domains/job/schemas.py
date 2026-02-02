@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.app.domains.job.models import JobStatus, JobType
 
@@ -13,20 +13,14 @@ class JobCreate(BaseModel):
 
 
 class ParseJobCreate(BaseModel):
-    """Schema for creating a PARSE job."""
-
     template_version_id: UUID
 
 
 class ClassifyJobCreate(BaseModel):
-    """Schema for creating a CLASSIFY job."""
-
     template_version_id: UUID
 
 
 class GenerateJobCreate(BaseModel):
-    """Schema for creating a GENERATE job."""
-
     template_version_id: UUID
     document_id: UUID
 
@@ -61,8 +55,6 @@ class JobStatusResponse(BaseModel):
 
 
 class JobListQuery(BaseModel):
-    """Query parameters for listing jobs."""
-
     status: Optional[JobStatus] = None
     job_type: Optional[JobType] = None
     entity_type: Optional[str] = Field(None, pattern="^(template_version|document)$")
@@ -72,8 +64,6 @@ class JobListQuery(BaseModel):
 
 
 class PipelineStatusResponse(BaseModel):
-    """Status of a complete processing pipeline for a template version."""
-
     template_version_id: UUID
     parse_job: Optional[JobStatusResponse] = None
     classify_job: Optional[JobStatusResponse] = None
@@ -86,8 +76,6 @@ class PipelineStatusResponse(BaseModel):
 
 
 class JobCountResponse(BaseModel):
-    """Count of jobs by status."""
-
     pending: int = 0
     running: int = 0
     completed: int = 0

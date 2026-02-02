@@ -3,13 +3,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from pydantic import ValidationError
 
+from backend.app.api.v1 import router as api_v1_router
 from backend.app.config import get_settings
-from backend.app.logging_config import setup_logging, get_logger
 from backend.app.infrastructure.database import check_database_connectivity
 from backend.app.infrastructure.redis import check_redis_connectivity, get_redis_client
 from backend.app.infrastructure.storage import check_storage_connectivity
-from backend.app.api.v1 import router as api_v1_router
-
+from backend.app.logging_config import get_logger, setup_logging
 
 try:
     settings = get_settings()
@@ -28,11 +27,7 @@ logger = get_logger("app.main")
 
 async def verify_infrastructure() -> dict:
     logger.info("Starting infrastructure connectivity verification")
-
-    # DB check is async
     db_status = await check_database_connectivity()
-
-    # Redis and Storage checks are sync
     redis_status = check_redis_connectivity(settings.redis_url)
     storage_status = check_storage_connectivity(
         settings.s3_endpoint_url,
@@ -60,12 +55,9 @@ async def verify_infrastructure() -> dict:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"Starting Template Intelligence Engine in {settings.app_env} environment")
-
     connectivity = await verify_infrastructure()
     app.state.infrastructure_status = connectivity
-
     yield
-
     logger.info("Shutting down Template Intelligence Engine")
 
 
@@ -94,7 +86,6 @@ async def infrastructure_health() -> dict:
 
 @app.get("/health/workers")
 async def workers_health() -> dict:
-    """Get status of active workers."""
     try:
         redis_client = get_redis_client(settings.redis_url)
         active_workers = redis_client.get_active_workers()

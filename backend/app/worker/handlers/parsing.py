@@ -1,14 +1,3 @@
-"""
-Parsing handler for PARSE jobs.
-
-Implements the full parsing pipeline:
-1. Validate .docx file
-2. Parse document structure
-3. Apply LLM-assisted inference (optional)
-4. Persist parsed.json
-5. Update template version status
-"""
-
 from uuid import UUID
 
 from backend.app.config import get_settings
@@ -27,13 +16,6 @@ logger = get_logger("worker.handlers.parsing")
 
 
 class ParsingHandler(JobHandler):
-    """
-    Handler for PARSE jobs.
-
-    Parses a template document, extracts structural information,
-    and persists the parsed representation to object storage.
-    """
-
     @property
     def name(self) -> str:
         return "ParsingHandler"
@@ -61,13 +43,9 @@ class ParsingHandler(JobHandler):
                 error=f"Invalid template_version_id format: {template_version_id_str}",
                 should_advance_pipeline=False,
             )
-
-        # Get settings and initialize services
         settings = get_settings()
         storage = StorageService(settings)
         template_repo = TemplateRepository(context.session)
-
-        # Get template version
         version = await template_repo.get_version_by_id(template_version_id)
         if not version:
             return HandlerResult(
@@ -75,13 +53,10 @@ class ParsingHandler(JobHandler):
                 error=f"Template version {template_version_id} not found",
                 should_advance_pipeline=False,
             )
-
-        # Mark parsing as in progress
         await template_repo.mark_parsing_in_progress(template_version_id)
         await context.session.flush()
 
         try:
-            # Step 1: Retrieve source document from storage
             logger.info(f"Retrieving source document from {version.source_doc_path}")
             source_content = storage.get_file(version.source_doc_path)
 
@@ -93,8 +68,6 @@ class ParsingHandler(JobHandler):
                     error=error_msg,
                     should_advance_pipeline=False,
                 )
-
-            # Step 2: Validate document
             logger.info("Validating document format")
             validator = DocumentValidator()
             validation_result = validator.validate(source_content)
@@ -109,8 +82,6 @@ class ParsingHandler(JobHandler):
                 )
 
             logger.info(f"Document validated: {validation_result.file_size} bytes")
-
-            # Step 3: Parse document structure
             logger.info("Parsing document structure")
             parser = WordDocumentParser()
             parsing_result = parser.parse(
@@ -136,8 +107,6 @@ class ParsingHandler(JobHandler):
                 f"({parsed_doc.heading_count} headings, {parsed_doc.paragraph_count} paragraphs, "
                 f"{parsed_doc.table_count} tables, {parsed_doc.list_count} lists)"
             )
-
-            # Step 4: Apply LLM-assisted structure inference (if enabled)
             inference_result = None
             if settings.llm_inference_enabled and settings.openai_api_key:
                 logger.info("Applying LLM-assisted structure inference")
@@ -162,12 +131,10 @@ class ParsingHandler(JobHandler):
 
                     inference_service.close()
                 except Exception as e:
-                    # LLM inference is optional - log but don't fail
                     logger.warning(f"LLM inference failed (continuing without): {e}")
             else:
                 logger.info("LLM inference disabled, skipping")
 
-            # Step 5: Persist parsed representation
             logger.info("Persisting parsed representation to storage")
             parsed_path = storage.upload_template_parsed_json(
                 template_id=version.template_id,
@@ -175,14 +142,12 @@ class ParsingHandler(JobHandler):
                 parsed_data=parsed_doc.model_dump(mode="json"),
             )
 
-            # Step 6: Update template version status
             await template_repo.mark_parsing_completed(
                 version_id=template_version_id,
                 parsed_path=parsed_path,
                 content_hash=parsed_doc.content_hash,
             )
 
-            # Prepare result data
             result_data = {
                 "template_version_id": str(template_version_id),
                 "template_id": str(version.template_id),
@@ -227,10 +192,7 @@ class ParsingHandler(JobHandler):
 
         except Exception as e:
             logger.error(f"Parsing failed for job {job.id}: {e}", exc_info=True)
-
-            # Mark parsing as failed
             await template_repo.mark_parsing_failed(template_version_id, str(e))
-
             return HandlerResult(
                 success=False,
                 error=str(e),

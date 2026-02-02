@@ -1,19 +1,10 @@
-from uuid import UUID
-
-from backend.app.worker.handlers.base import JobHandler, HandlerContext, HandlerResult
 from backend.app.logging_config import get_logger
+from backend.app.worker.handlers.base import HandlerContext, HandlerResult, JobHandler
 
 logger = get_logger("worker.handlers.generation")
 
 
 class GenerationHandler(JobHandler):
-    """
-    Handler for GENERATE jobs.
-
-    Generates a document by filling dynamic sections in a template.
-    This is a placeholder implementation - actual generation logic will be added in Phase 4.
-    """
-
     @property
     def name(self) -> str:
         return "GenerationHandler"

@@ -1,45 +1,32 @@
 from typing import Optional, Sequence
 from uuid import UUID
 
-from backend.app.domains.job.models import (
-    Job,
-    JobStatus,
-    JobType,
-    InvalidJobTransitionError,
-)
+from backend.app.domains.job.models import Job, JobStatus, JobType
+from backend.app.domains.job.repository import JobRepository
 from backend.app.domains.job.schemas import (
-    JobCreate,
-    ParseJobCreate,
     ClassifyJobCreate,
     GenerateJobCreate,
-    PipelineStatusResponse,
+    JobCreate,
     JobStatusResponse,
+    ParseJobCreate,
+    PipelineStatusResponse,
 )
-from backend.app.domains.job.repository import JobRepository
 from backend.app.logging_config import get_logger
 
 logger = get_logger("app.domains.job.service")
 
 
 class JobCreationError(Exception):
-    """Raised when job creation fails."""
-
     pass
 
 
 class PipelineError(Exception):
-    """Raised when pipeline orchestration fails."""
-
     pass
 
 
 class JobService:
     def __init__(self, repo: JobRepository):
         self.repo = repo
-
-    # =========================================================================
-    # Basic Job Operations
-    # =========================================================================
 
     async def get_job(self, job_id: UUID) -> Optional[Job]:
         return await self.repo.get_by_id(job_id)
@@ -70,12 +57,7 @@ class JobService:
     async def get_job_counts(self) -> dict[JobStatus, int]:
         return await self.repo.count_by_status()
 
-    # =========================================================================
-    # Job Creation - Type-Specific Methods
-    # =========================================================================
-
     async def create_job(self, data: JobCreate) -> Job:
-        """Generic job creation - prefer type-specific methods."""
         job = Job(
             job_type=data.job_type,
             payload=data.payload,
@@ -84,29 +66,30 @@ class JobService:
         return await self.repo.create(job)
 
     async def create_parse_job(self, data: ParseJobCreate) -> Job:
-        """Create a PARSE job for a template version."""
         job = Job(
             job_type=JobType.PARSE,
             payload={"template_version_id": str(data.template_version_id)},
             status=JobStatus.PENDING,
         )
         created = await self.repo.create(job)
-        logger.info(f"Created PARSE job {created.id} for template_version {data.template_version_id}")
+        logger.info(
+            f"Created PARSE job {created.id} for template_version {data.template_version_id}"
+        )
         return created
 
     async def create_classify_job(self, data: ClassifyJobCreate) -> Job:
-        """Create a CLASSIFY job for a template version."""
         job = Job(
             job_type=JobType.CLASSIFY,
             payload={"template_version_id": str(data.template_version_id)},
             status=JobStatus.PENDING,
         )
         created = await self.repo.create(job)
-        logger.info(f"Created CLASSIFY job {created.id} for template_version {data.template_version_id}")
+        logger.info(
+            f"Created CLASSIFY job {created.id} for template_version {data.template_version_id}"
+        )
         return created
 
     async def create_generate_job(self, data: GenerateJobCreate) -> Job:
-        """Create a GENERATE job for document generation."""
         job = Job(
             job_type=JobType.GENERATE,
             payload={
@@ -116,38 +99,30 @@ class JobService:
             status=JobStatus.PENDING,
         )
         created = await self.repo.create(job)
-        logger.info(
-            f"Created GENERATE job {created.id} for document {data.document_id}"
-        )
+        logger.info(f"Created GENERATE job {created.id} for document {data.document_id}")
         return created
 
-    # =========================================================================
-    # Job Lifecycle Management
-    # =========================================================================
-
-    async def claim_job(self, worker_id: str, job_types: Optional[list[JobType]] = None) -> Optional[Job]:
-        """Atomically claim a pending job for a worker."""
+    async def claim_job(
+        self, worker_id: str, job_types: Optional[list[JobType]] = None
+    ) -> Optional[Job]:
         job = await self.repo.claim_pending_job(worker_id, job_types)
         if job:
             logger.info(f"Worker {worker_id} claimed job {job.id} ({job.job_type.value})")
         return job
 
     async def complete_job(self, job_id: UUID, result: Optional[dict] = None) -> Optional[Job]:
-        """Mark a job as completed with optional result."""
         job = await self.repo.complete_job(job_id, result)
         if job:
             logger.info(f"Job {job_id} completed successfully")
         return job
 
     async def fail_job(self, job_id: UUID, error: str) -> Optional[Job]:
-        """Mark a job as failed with error information."""
         job = await self.repo.fail_job(job_id, error)
         if job:
             logger.warning(f"Job {job_id} failed: {error}")
         return job
 
     async def cancel_job(self, job_id: UUID) -> bool:
-        """Cancel a job that hasn't completed yet."""
         job = await self.repo.get_by_id(job_id)
         if not job:
             return False
@@ -158,12 +133,7 @@ class JobService:
         logger.info(f"Job {job_id} cancelled by user")
         return True
 
-    # =========================================================================
-    # Stuck Job Recovery
-    # =========================================================================
-
     async def recover_stuck_jobs(self, timeout_minutes: int = 30) -> list[UUID]:
-        """Find and reset jobs stuck in RUNNING state."""
         stuck_jobs = await self.repo.find_stuck_jobs(timeout_minutes)
         recovered_ids = []
 
@@ -175,19 +145,11 @@ class JobService:
 
         return recovered_ids
 
-    # =========================================================================
-    # Pipeline Orchestration
-    # =========================================================================
-
     async def get_pipeline_status(self, template_version_id: UUID) -> PipelineStatusResponse:
-        """Get the status of the processing pipeline for a template version."""
         pipeline = await self.repo.get_pipeline_jobs(template_version_id)
-
         parse_job = pipeline.get(JobType.PARSE)
         classify_job = pipeline.get(JobType.CLASSIFY)
         generate_job = pipeline.get(JobType.GENERATE)
-
-        # Determine current stage
         current_stage = None
         is_complete = False
         has_failed = False
@@ -228,7 +190,6 @@ class JobService:
         )
 
     async def start_pipeline(self, template_version_id: UUID) -> Job:
-        """Start the processing pipeline by creating a PARSE job."""
         existing = await self.repo.get_pipeline_jobs(template_version_id)
         parse_job = existing.get(JobType.PARSE)
 
@@ -240,11 +201,6 @@ class JobService:
         return await self.create_parse_job(ParseJobCreate(template_version_id=template_version_id))
 
     async def advance_pipeline(self, job: Job) -> Optional[Job]:
-        """
-        Advance the pipeline after a job completes.
-        Called by workers after successful job completion.
-        Returns the next job if one was created.
-        """
         if job.status != JobStatus.COMPLETED:
             return None
 
@@ -255,13 +211,12 @@ class JobService:
         tv_id = UUID(template_version_id)
 
         if job.job_type == JobType.PARSE:
-            # PARSE completed -> create CLASSIFY job
             return await self.create_classify_job(ClassifyJobCreate(template_version_id=tv_id))
 
         elif job.job_type == JobType.CLASSIFY:
-            # CLASSIFY completed -> pipeline is ready for GENERATE
-            # GENERATE jobs are created explicitly when a document is created
-            logger.info(f"Classification complete for template_version {tv_id}, ready for generation")
+            logger.info(
+                f"Classification complete for template_version {tv_id}, ready for generation"
+            )
             return None
 
         return None

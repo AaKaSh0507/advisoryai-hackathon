@@ -1,19 +1,19 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from backend.app.api.deps import get_document_service, get_job_service
+from backend.app.config import get_settings
 from backend.app.domains.document.schemas import (
     DocumentCreate,
     DocumentResponse,
     DocumentVersionResponse,
 )
 from backend.app.domains.document.service import DocumentService
-from backend.app.domains.job.service import JobService, PipelineError
-from backend.app.domains.job.schemas import GenerateJobCreate, JobResponse, PipelineStatusResponse
-from backend.app.api.deps import get_document_service, get_job_service
+from backend.app.domains.job.schemas import GenerateJobCreate
+from backend.app.domains.job.service import JobService
 from backend.app.infrastructure.redis import get_redis_client
-from backend.app.config import get_settings
 
 router = APIRouter()
 DocumentServiceDep = Annotated[DocumentService, Depends(get_document_service)]
@@ -26,14 +26,6 @@ async def create_document(
     service: DocumentServiceDep,
     job_service: JobServiceDep,
 ) -> DocumentResponse:
-    """
-    Create a new document from a template version.
-
-    This verifies that the template version has completed classification
-    before allowing document creation. A GENERATE job is automatically
-    created to fill dynamic sections.
-    """
-    # Verify the template version pipeline is ready for generation
     pipeline_status = await job_service.get_pipeline_status(data.template_version_id)
     if pipeline_status.has_failed:
         raise HTTPException(
@@ -49,10 +41,8 @@ async def create_document(
             f"Current stage: {pipeline_status.current_stage}",
         )
 
-    # Create the document
     doc = await service.create_document(data)
 
-    # Create GENERATE job
     generate_job = await job_service.create_generate_job(
         GenerateJobCreate(
             template_version_id=data.template_version_id,
@@ -63,13 +53,12 @@ async def create_document(
     await service.repo.session.commit()
     await service.repo.session.refresh(doc)
 
-    # Notify workers about the new job
     try:
         settings = get_settings()
         redis_client = get_redis_client(settings.redis_url)
         redis_client.notify_job_created(generate_job.id, generate_job.job_type.value)
     except Exception:
-        pass  # Redis notification is best-effort
+        pass
 
     return DocumentResponse.model_validate(doc)
 

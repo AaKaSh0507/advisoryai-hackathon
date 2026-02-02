@@ -4,10 +4,11 @@ import uuid
 from typing import Any, BinaryIO
 
 import boto3
-from backend.app.config import Settings
-from backend.app.logging_config import get_logger
 from botocore.config import Config
 from botocore.exceptions import ClientError, EndpointConnectionError, NoCredentialsError
+
+from backend.app.config import Settings
+from backend.app.logging_config import get_logger
 
 logger = get_logger("app.infrastructure.storage")
 
@@ -24,18 +25,9 @@ class StorageService:
         )
         self.bucket_name = settings.s3_bucket_name
 
-    # =========================================================================
-    # Template Storage
-    # =========================================================================
-
     def upload_template_source(
         self, template_id: uuid.UUID, version: int, file_obj: BinaryIO
     ) -> str:
-        """
-        Upload template source document.
-
-        Authoritative path: templates/{template_id}/{version}/source.docx
-        """
         key = f"templates/{template_id}/{version}/source.docx"
         self._upload_file(
             key,
@@ -47,11 +39,6 @@ class StorageService:
     def upload_template_parsed(
         self, template_id: uuid.UUID, version: int, file_obj: BinaryIO
     ) -> str:
-        """
-        Upload parsed representation.
-
-        Authoritative path: templates/{template_id}/{version}/parsed.json
-        """
         key = f"templates/{template_id}/{version}/parsed.json"
         self._upload_file(key, file_obj, content_type="application/json")
         return key
@@ -59,30 +46,15 @@ class StorageService:
     def upload_template_parsed_json(
         self, template_id: uuid.UUID, version: int, parsed_data: dict[str, Any]
     ) -> str:
-        """
-        Upload parsed representation from dict.
-
-        Serializes the parsed document to JSON and uploads.
-        """
         json_bytes = json.dumps(parsed_data, indent=2, default=str).encode("utf-8")
         file_obj = io.BytesIO(json_bytes)
         return self.upload_template_parsed(template_id, version, file_obj)
 
     def get_template_source(self, template_id: uuid.UUID, version: int) -> bytes | None:
-        """
-        Get template source document content.
-
-        Returns None if file doesn't exist or on error.
-        """
         key = f"templates/{template_id}/{version}/source.docx"
         return self.get_file(key)
 
     def get_template_parsed(self, template_id: uuid.UUID, version: int) -> dict[str, Any] | None:
-        """
-        Get parsed representation as dict.
-
-        Returns None if file doesn't exist or on error.
-        """
         key = f"templates/{template_id}/{version}/parsed.json"
         content = self.get_file(key)
         if content:
@@ -94,18 +66,12 @@ class StorageService:
         return None
 
     def template_source_exists(self, template_id: uuid.UUID, version: int) -> bool:
-        """Check if template source document exists."""
         key = f"templates/{template_id}/{version}/source.docx"
         return self.file_exists(key)
 
     def template_parsed_exists(self, template_id: uuid.UUID, version: int) -> bool:
-        """Check if parsed representation exists."""
         key = f"templates/{template_id}/{version}/parsed.json"
         return self.file_exists(key)
-
-    # =========================================================================
-    # Document Storage
-    # =========================================================================
 
     def upload_document_output(
         self, document_id: uuid.UUID, version: int, file_obj: BinaryIO
@@ -118,12 +84,7 @@ class StorageService:
         )
         return key
 
-    # =========================================================================
-    # Generic Operations
-    # =========================================================================
-
     def get_file(self, key: str) -> bytes | None:
-        """Get file content from storage."""
         try:
             response = self.client.get_object(Bucket=self.bucket_name, Key=key)
             return response["Body"].read()
@@ -139,7 +100,6 @@ class StorageService:
             return None
 
     def file_exists(self, key: str) -> bool:
-        """Check if a file exists in storage."""
         try:
             self.client.head_object(Bucket=self.bucket_name, Key=key)
             return True
@@ -154,7 +114,6 @@ class StorageService:
             return False
 
     def delete_file(self, key: str) -> bool:
-        """Delete a file from storage."""
         try:
             self.client.delete_object(Bucket=self.bucket_name, Key=key)
             logger.info(f"Deleted file {key}")
@@ -164,9 +123,7 @@ class StorageService:
             return False
 
     def _upload_file(self, key: str, file_obj: BinaryIO, content_type: str | None = None):
-        """Upload a file to storage."""
         try:
-            # reset file pointer to beginning if possible
             if hasattr(file_obj, "seek"):
                 file_obj.seek(0)
 

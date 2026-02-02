@@ -1,18 +1,18 @@
-from typing import Optional, Annotated
+from typing import Annotated, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from backend.app.api.deps import get_job_service
 from backend.app.domains.job.models import JobStatus, JobType
 from backend.app.domains.job.schemas import (
+    JobCountResponse,
     JobCreate,
     JobResponse,
     JobStatusResponse,
     PipelineStatusResponse,
-    JobCountResponse,
 )
 from backend.app.domains.job.service import JobService, PipelineError
-from backend.app.api.deps import get_job_service
 
 router = APIRouter()
 JobServiceDep = Annotated[JobService, Depends(get_job_service)]
@@ -28,25 +28,18 @@ async def list_jobs(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
 ) -> list[JobResponse]:
-    """
-    List jobs with optional filtering.
-
-    Filter by:
-    - status: PENDING, RUNNING, COMPLETED, FAILED
-    - type: PARSE, CLASSIFY, GENERATE
-    - entity_type + entity_id: Jobs related to a specific entity
-    """
     if entity_type and entity_id:
         jobs = await service.list_jobs_by_entity(entity_type, entity_id, skip, limit)
     else:
-        jobs = await service.list_jobs(status=status_filter, job_type=job_type, skip=skip, limit=limit)
+        jobs = await service.list_jobs(
+            status=status_filter, job_type=job_type, skip=skip, limit=limit
+        )
 
     return [JobResponse.model_validate(j) for j in jobs]
 
 
 @router.get("/counts", response_model=JobCountResponse)
 async def get_job_counts(service: JobServiceDep) -> JobCountResponse:
-    """Get count of jobs by status."""
     counts = await service.get_job_counts()
     return JobCountResponse(
         pending=counts.get(JobStatus.PENDING, 0),
@@ -61,13 +54,6 @@ async def create_job(
     data: JobCreate,
     service: JobServiceDep,
 ) -> JobResponse:
-    """
-    Create a new job.
-
-    For most use cases, prefer using the specialized endpoints:
-    - POST /templates/{id}/versions to trigger parsing
-    - Pipeline advancement is automatic
-    """
     job = await service.create_job(data)
     await service.repo.session.commit()
     await service.repo.session.refresh(job)
@@ -79,7 +65,6 @@ async def get_job(
     job_id: UUID,
     service: JobServiceDep,
 ) -> JobResponse:
-    """Get full job details including payload and result."""
     job = await service.get_job(job_id)
     if not job:
         raise HTTPException(
@@ -94,7 +79,6 @@ async def get_job_status(
     job_id: UUID,
     service: JobServiceDep,
 ) -> JobStatusResponse:
-    """Get job status (lighter response without payload/result)."""
     job = await service.get_job_status(job_id)
     if not job:
         raise HTTPException(
@@ -109,12 +93,6 @@ async def cancel_job(
     job_id: UUID,
     service: JobServiceDep,
 ) -> dict:
-    """
-    Cancel a job.
-
-    Only jobs in PENDING or RUNNING state can be cancelled.
-    Completed or already failed jobs cannot be cancelled.
-    """
     cancelled = await service.cancel_job(job_id)
     if not cancelled:
         job = await service.get_job(job_id)
@@ -136,28 +114,18 @@ async def get_pipeline_status(
     template_version_id: UUID,
     service: JobServiceDep,
 ) -> PipelineStatusResponse:
-    """
-    Get the status of the processing pipeline for a template version.
-
-    Returns the status of each stage (PARSE, CLASSIFY, GENERATE) and
-    indicates the current stage and overall pipeline state.
-    """
     return await service.get_pipeline_status(template_version_id)
 
 
-@router.post("/pipeline/{template_version_id}/start", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/pipeline/{template_version_id}/start",
+    response_model=JobResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def start_pipeline(
     template_version_id: UUID,
     service: JobServiceDep,
 ) -> JobResponse:
-    """
-    Start the processing pipeline for a template version.
-
-    Creates a PARSE job to begin the pipeline. Subsequent stages
-    (CLASSIFY) will be created automatically upon completion.
-
-    GENERATE jobs are created when documents are created.
-    """
     try:
         job = await service.start_pipeline(template_version_id)
         await service.repo.session.commit()

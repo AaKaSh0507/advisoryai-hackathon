@@ -2,9 +2,10 @@ import uuid
 from collections.abc import Sequence
 from datetime import datetime
 
-from backend.app.domains.template.models import ParsingStatus, Template, TemplateVersion
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.domains.template.models import ParsingStatus, Template, TemplateVersion
 
 
 class TemplateRepository:
@@ -46,7 +47,6 @@ class TemplateRepository:
         return result.scalar_one_or_none()
 
     async def get_version_by_id(self, version_id: uuid.UUID) -> TemplateVersion | None:
-        """Get a template version by its ID."""
         stmt = select(TemplateVersion).where(TemplateVersion.id == version_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
@@ -78,7 +78,6 @@ class TemplateRepository:
         parsed_path: str | None = None,
         content_hash: str | None = None,
     ) -> TemplateVersion | None:
-        """Update the parsing status of a template version."""
         version = await self.get_version_by_id(version_id)
         if not version:
             return None
@@ -97,7 +96,6 @@ class TemplateRepository:
         return version
 
     async def mark_parsing_in_progress(self, version_id: uuid.UUID) -> TemplateVersion | None:
-        """Mark a template version as parsing in progress."""
         return await self.update_parsing_status(version_id, ParsingStatus.IN_PROGRESS)
 
     async def mark_parsing_completed(
@@ -106,7 +104,6 @@ class TemplateRepository:
         parsed_path: str,
         content_hash: str,
     ) -> TemplateVersion | None:
-        """Mark a template version as successfully parsed."""
         return await self.update_parsing_status(
             version_id,
             ParsingStatus.COMPLETED,
@@ -119,5 +116,4 @@ class TemplateRepository:
         version_id: uuid.UUID,
         error: str,
     ) -> TemplateVersion | None:
-        """Mark a template version parsing as failed."""
         return await self.update_parsing_status(version_id, ParsingStatus.FAILED, error=error)

@@ -1,6 +1,8 @@
 from typing import Annotated
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+
 from backend.app.api.deps import get_job_service, get_template_service
 from backend.app.config import get_settings
 from backend.app.domains.job.schemas import ParseJobCreate
@@ -14,7 +16,6 @@ from backend.app.domains.template.schemas import (
 from backend.app.domains.template.service import TemplateService
 from backend.app.infrastructure.redis import get_redis_client
 from backend.app.infrastructure.storage import StorageService
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 router = APIRouter()
 
@@ -99,23 +100,11 @@ async def create_template_version(
     job_service: JobServiceDep,
     file: UploadFile = File(..., description="Word document (.docx) file to upload"),
 ) -> TemplateVersionResponse:
-    """
-    Upload a new template version.
-
-    Accepts only .docx files. This automatically triggers the processing pipeline:
-    1. Validates the uploaded file is a valid .docx
-    2. Creates a PARSE job to extract template structure
-    3. On PARSE completion, a CLASSIFY job is created automatically
-    4. Once classified, the template is ready for document generation
-    """
-    # Validate file extension
     if file.filename and not file.filename.lower().endswith(".docx"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only .docx files are accepted. Please upload a Word document.",
         )
-
-    # Validate content type
     valid_content_types = [
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "application/octet-stream",  # Some clients send this
@@ -132,20 +121,17 @@ async def create_template_version(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Template {template_id} not found",
         )
-
-    # Create PARSE job to start the pipeline
     parse_job = await job_service.create_parse_job(ParseJobCreate(template_version_id=version.id))
 
     await service.repo.session.commit()
     await service.repo.session.refresh(version)
 
-    # Notify workers about the new job
     try:
         settings = get_settings()
         redis_client = get_redis_client(settings.redis_url)
         redis_client.notify_job_created(parse_job.id, parse_job.job_type.value)
     except Exception:
-        pass  # Redis notification is best-effort
+        pass
 
     return TemplateVersionResponse.model_validate(version)
 
@@ -180,14 +166,6 @@ async def get_parsed_representation(
     version_number: int,
     service: TemplateServiceDep,
 ) -> dict:
-    """
-    Get the parsed representation of a template version.
-
-    Returns the full parsed JSON structure including all blocks,
-    metadata, and statistics.
-
-    Requires the template version to have been successfully parsed.
-    """
     from backend.app.domains.template.models import ParsingStatus
 
     version = await service.repo.get_version(template_id, version_number)
@@ -209,7 +187,6 @@ async def get_parsed_representation(
             detail="Parsed representation path not found",
         )
 
-    # Retrieve from storage
     settings = get_settings()
     storage = StorageService(settings)
     parsed_data = storage.get_template_parsed(template_id, version_number)
@@ -229,11 +206,6 @@ async def get_parsing_status(
     version_number: int,
     service: TemplateServiceDep,
 ) -> dict:
-    """
-    Get the parsing status of a template version.
-
-    Returns current status, any errors, and completion timestamp.
-    """
     version = await service.repo.get_version(template_id, version_number)
     if not version:
         raise HTTPException(

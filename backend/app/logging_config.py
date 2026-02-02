@@ -1,7 +1,6 @@
+import json
 import logging
 import logging.handlers
-import json
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 

@@ -1,8 +1,9 @@
 from datetime import datetime
 from uuid import UUID
 
-from backend.app.domains.template.models import ParsingStatus
 from pydantic import BaseModel, ConfigDict, Field
+
+from backend.app.domains.template.models import ParsingStatus
 
 
 class TemplateCreate(BaseModel):
@@ -18,7 +19,6 @@ class TemplateResponse(BaseModel):
     name: str
     created_at: datetime
     updated_at: datetime
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -33,14 +33,10 @@ class TemplateVersionResponse(BaseModel):
     parsed_at: datetime | None = None
     content_hash: str | None = None
     created_at: datetime
-
     model_config = ConfigDict(from_attributes=True)
 
 
 class TemplateVersionDetailResponse(TemplateVersionResponse):
-    """Extended response with additional parsing details."""
-
     is_parsed: bool = False
     is_parsing_failed: bool = False
-
     model_config = ConfigDict(from_attributes=True)

@@ -1,9 +1,3 @@
-"""
-Parsing domain module.
-
-This module handles Word document parsing and structure extraction.
-"""
-
 from backend.app.domains.parsing.inference import (
     InferenceResult,
     LLMConfig,
@@ -11,6 +5,7 @@ from backend.app.domains.parsing.inference import (
     StructureSuggestion,
 )
 from backend.app.domains.parsing.parser import WordDocumentParser
+from backend.app.domains.parsing.repository import ParsedDocumentRepository
 from backend.app.domains.parsing.schemas import (
     BlockType,
     DocumentBlock,
@@ -33,7 +28,6 @@ from backend.app.domains.parsing.schemas import (
 from backend.app.domains.parsing.validator import DocumentValidator, ValidationResult
 
 __all__ = [
-    # Schemas
     "ParsedDocument",
     "DocumentBlock",
     "BlockType",
@@ -51,12 +45,10 @@ __all__ = [
     "TextRun",
     "generate_block_id",
     "generate_content_hash",
-    # Parser
     "WordDocumentParser",
-    # Validator
+    "ParsedDocumentRepository",
     "DocumentValidator",
     "ValidationResult",
-    # Inference
     "StructureInferenceService",
     "LLMConfig",
     "StructureSuggestion",

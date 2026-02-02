@@ -46,10 +46,6 @@ class Settings(BaseSettings):
         description="Directory for log files",
     )
 
-    # =========================================================================
-    # LLM Configuration for Structure Inference
-    # =========================================================================
-
     openai_api_key: str | None = Field(
         default=None,
         description="OpenAI API key for LLM-assisted structure inference",

@@ -1,8 +1,8 @@
-from datetime import datetime, timedelta
-from typing import Sequence, Optional
 import uuid
+from datetime import datetime, timedelta
+from typing import Optional, Sequence
 
-from sqlalchemy import select, update, and_, or_
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.domains.job.models import Job, JobStatus, JobType
@@ -45,7 +45,6 @@ class JobRepository:
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[Job]:
-        """List jobs for a specific entity (template_version or document)."""
         key = f"{entity_type}_id"
         stmt = (
             select(Job)
@@ -60,11 +59,6 @@ class JobRepository:
     async def claim_pending_job(
         self, worker_id: str, job_types: Optional[list[JobType]] = None
     ) -> Optional[Job]:
-        """
-        Atomically claim the oldest pending job for the given worker.
-        Uses SELECT FOR UPDATE SKIP LOCKED for atomic claiming.
-        Returns the claimed job or None if no jobs available.
-        """
         stmt = (
             select(Job)
             .where(Job.status == JobStatus.PENDING)
@@ -87,10 +81,7 @@ class JobRepository:
 
         return job
 
-    async def complete_job(
-        self, job_id: uuid.UUID, result: Optional[dict] = None
-    ) -> Optional[Job]:
-        """Mark a job as completed with optional result data."""
+    async def complete_job(self, job_id: uuid.UUID, result: Optional[dict] = None) -> Optional[Job]:
         job = await self.get_by_id(job_id)
         if not job or job.status != JobStatus.RUNNING:
             return None
@@ -102,10 +93,7 @@ class JobRepository:
         await self.session.flush()
         return job
 
-    async def fail_job(
-        self, job_id: uuid.UUID, error: str
-    ) -> Optional[Job]:
-        """Mark a job as failed with error information."""
+    async def fail_job(self, job_id: uuid.UUID, error: str) -> Optional[Job]:
         job = await self.get_by_id(job_id)
         if not job or job.is_terminal:
             return None
@@ -118,10 +106,6 @@ class JobRepository:
         return job
 
     async def find_stuck_jobs(self, timeout_minutes: int = 30) -> Sequence[Job]:
-        """
-        Find jobs that have been RUNNING longer than the timeout.
-        These may be from crashed workers.
-        """
         threshold = datetime.utcnow() - timedelta(minutes=timeout_minutes)
         stmt = select(Job).where(
             and_(
@@ -133,10 +117,6 @@ class JobRepository:
         return result.scalars().all()
 
     async def reset_stuck_job(self, job_id: uuid.UUID, reason: str) -> Optional[Job]:
-        """
-        Reset a stuck job back to PENDING status for retry.
-        Records the reset reason in the error field.
-        """
         job = await self.get_by_id(job_id)
         if not job or job.status != JobStatus.RUNNING:
             return None
@@ -149,11 +129,9 @@ class JobRepository:
         await self.session.flush()
         return job
 
-    async def get_pipeline_jobs(self, template_version_id: uuid.UUID) -> dict[JobType, Optional[Job]]:
-        """
-        Get all jobs in the pipeline for a template version.
-        Returns a dict mapping JobType to the most recent job of that type.
-        """
+    async def get_pipeline_jobs(
+        self, template_version_id: uuid.UUID
+    ) -> dict[JobType, Optional[Job]]:
         stmt = (
             select(Job)
             .where(Job.payload["template_version_id"].astext == str(template_version_id))
@@ -174,7 +152,6 @@ class JobRepository:
         return pipeline
 
     async def count_by_status(self) -> dict[JobStatus, int]:
-        """Get count of jobs by status."""
         from sqlalchemy import func
 
         stmt = select(Job.status, func.count(Job.id)).group_by(Job.status)
