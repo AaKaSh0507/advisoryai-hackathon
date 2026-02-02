@@ -41,6 +41,10 @@ postgresql.JSONB = JSON
 
 from backend.app.config import Settings  # noqa: E402
 from backend.app.domains.document.models import Document  # noqa: E402
+from backend.app.domains.generation.models import (  # noqa: E402, F401
+    GenerationInput,
+    GenerationInputBatch,
+)
 
 # Import all models to register them with Base.metadata
 # This is necessary for create_all to create the tables
