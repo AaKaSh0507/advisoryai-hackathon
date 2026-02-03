@@ -1,4 +1,4 @@
-from typing import Annotated, Optional
+from typing import Annotated, Optional, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -57,7 +57,7 @@ async def create_job(
     job = await service.create_job(data)
     await service.repo.session.commit()
     await service.repo.session.refresh(job)
-    return JobResponse.model_validate(job)
+    return cast(JobResponse, JobResponse.model_validate(job))
 
 
 @router.get("/{job_id}", response_model=JobResponse)
@@ -71,7 +71,7 @@ async def get_job(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Job {job_id} not found",
         )
-    return JobResponse.model_validate(job)
+    return cast(JobResponse, JobResponse.model_validate(job))
 
 
 @router.get("/{job_id}/status", response_model=JobStatusResponse)
@@ -85,7 +85,7 @@ async def get_job_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Job {job_id} not found",
         )
-    return JobStatusResponse.model_validate(job)
+    return cast(JobStatusResponse, JobStatusResponse.model_validate(job))
 
 
 @router.post("/{job_id}/cancel", status_code=status.HTTP_200_OK)
@@ -130,7 +130,7 @@ async def start_pipeline(
         job = await service.start_pipeline(template_version_id)
         await service.repo.session.commit()
         await service.repo.session.refresh(job)
-        return JobResponse.model_validate(job)
+        return cast(JobResponse, JobResponse.model_validate(job))
     except PipelineError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

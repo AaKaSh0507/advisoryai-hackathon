@@ -50,6 +50,7 @@ from backend.app.domains.generation.section_output_models import (  # noqa: E402
     SectionOutput,
     SectionOutputBatch,
 )
+from backend.app.domains.rendering.models import RenderedDocument  # noqa: E402, F401
 from backend.app.infrastructure.database import Base  # noqa: E402
 
 # ============================================================================
@@ -175,6 +176,14 @@ class MockStorageService:
             content = file_obj
         self._files[key] = content
         return key
+
+    def get_document_output(self, document_id, version) -> bytes | None:
+        key = f"documents/{document_id}/{version}/output.docx"
+        return self._files.get(key)
+
+    def document_output_exists(self, document_id, version) -> bool:
+        key = f"documents/{document_id}/{version}/output.docx"
+        return key in self._files
 
     def get_file(self, key: str) -> bytes | None:
         return self._files.get(key)

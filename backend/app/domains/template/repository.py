@@ -1,6 +1,7 @@
 import uuid
 from collections.abc import Sequence
 from datetime import datetime
+from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,12 +21,12 @@ class TemplateRepository:
     async def get_by_id(self, template_id: uuid.UUID) -> Template | None:
         stmt = select(Template).where(Template.id == template_id)
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        return cast(Template | None, result.scalar_one_or_none())
 
     async def list_all(self, skip: int = 0, limit: int = 100) -> Sequence[Template]:
         stmt = select(Template).offset(skip).limit(limit)
         result = await self.session.execute(stmt)
-        return result.scalars().all()
+        return cast(Sequence[Template], result.scalars().all())
 
     async def delete(self, template: Template) -> None:
         await self.session.delete(template)
@@ -44,12 +45,12 @@ class TemplateRepository:
             TemplateVersion.version_number == version_number,
         )
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        return cast(TemplateVersion | None, result.scalar_one_or_none())
 
     async def get_version_by_id(self, version_id: uuid.UUID) -> TemplateVersion | None:
         stmt = select(TemplateVersion).where(TemplateVersion.id == version_id)
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        return cast(TemplateVersion | None, result.scalar_one_or_none())
 
     async def get_latest_version(self, template_id: uuid.UUID) -> TemplateVersion | None:
         stmt = (
@@ -59,7 +60,7 @@ class TemplateRepository:
             .limit(1)
         )
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        return cast(TemplateVersion | None, result.scalar_one_or_none())
 
     async def list_versions(self, template_id: uuid.UUID) -> Sequence[TemplateVersion]:
         stmt = (
@@ -68,7 +69,7 @@ class TemplateRepository:
             .order_by(TemplateVersion.version_number.desc())
         )
         result = await self.session.execute(stmt)
-        return result.scalars().all()
+        return cast(Sequence[TemplateVersion], result.scalars().all())
 
     async def update_parsing_status(
         self,

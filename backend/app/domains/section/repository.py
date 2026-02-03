@@ -1,10 +1,11 @@
-from typing import Sequence, Optional
 import uuid
+from typing import Sequence, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.domains.section.models import Section
+
 
 class SectionRepository:
     def __init__(self, session: AsyncSession):
@@ -18,4 +19,4 @@ class SectionRepository:
     async def get_by_template_version_id(self, template_version_id: uuid.UUID) -> Sequence[Section]:
         stmt = select(Section).where(Section.template_version_id == template_version_id)
         result = await self.session.execute(stmt)
-        return result.scalars().all()
+        return cast(Sequence[Section], result.scalars().all())

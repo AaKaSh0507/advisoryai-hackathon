@@ -61,8 +61,8 @@ class TemplateVersion(Base):
 
     @property
     def is_parsed(self) -> bool:
-        return self.parsing_status == ParsingStatus.COMPLETED
+        return bool(self.parsing_status == ParsingStatus.COMPLETED)
 
     @property
     def is_parsing_failed(self) -> bool:
-        return self.parsing_status == ParsingStatus.FAILED
+        return bool(self.parsing_status == ParsingStatus.FAILED)

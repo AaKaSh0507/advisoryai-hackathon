@@ -1,11 +1,11 @@
-from typing import Annotated
+from typing import Annotated, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.app.api.deps import get_job_service, get_section_service
-from backend.app.domains.job.models import JobType
+from backend.app.domains.job.schemas import ClassifyJobCreate
 from backend.app.domains.job.service import JobService
 from backend.app.domains.section.schemas import SectionCreate, SectionResponse
 from backend.app.domains.section.service import SectionService
@@ -30,7 +30,7 @@ async def create_section(data: SectionCreate, service: SectionServiceDep) -> Sec
     section = await service.create_section(data)
     await service.repo.session.commit()
     await service.repo.session.refresh(section)
-    return SectionResponse.model_validate(section)
+    return cast(SectionResponse, SectionResponse.model_validate(section))
 
 
 @router.get("/template-version/{template_version_id}", response_model=list[SectionResponse])
@@ -48,9 +48,8 @@ async def trigger_classification(
     request: ClassificationTriggerRequest,
     job_service: JobServiceDep,
 ) -> ClassificationTriggerResponse:
-    job = await job_service.create_job(
-        job_type=JobType.CLASSIFY,
-        payload={"template_version_id": str(request.template_version_id)},
+    job = await job_service.create_classify_job(
+        ClassifyJobCreate(template_version_id=request.template_version_id)
     )
 
     await job_service.repo.session.commit()

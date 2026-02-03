@@ -41,7 +41,8 @@ class RedisClient:
 
     def ping(self) -> bool:
         try:
-            return self._client.ping()
+            result = self._client.ping()
+            return bool(result)
         except RedisError:
             return False
 
@@ -91,7 +92,7 @@ class RedisClient:
         end
         """
         result = self._client.eval(script, 1, key, token)
-        return result == 1
+        return bool(result == 1)
 
     def extend_lock(self, name: str, token: str, ttl_seconds: int = 30) -> bool:
         key = f"locks:{name}"
@@ -103,7 +104,7 @@ class RedisClient:
         end
         """
         result = self._client.eval(script, 1, key, token, ttl_seconds)
-        return result == 1
+        return bool(result == 1)
 
 
 _redis_client: Optional[RedisClient] = None

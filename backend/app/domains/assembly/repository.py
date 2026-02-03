@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Sequence
+from typing import Any, Sequence, cast
 from uuid import UUID
 
 from sqlalchemy import and_, select
@@ -39,7 +39,7 @@ class AssembledDocumentRepository:
     async def get_by_id(self, assembled_doc_id: UUID) -> AssembledDocument | None:
         stmt = select(AssembledDocument).where(AssembledDocument.id == assembled_doc_id)
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        return cast(AssembledDocument | None, result.scalar_one_or_none())
 
     async def get_by_document_and_version(
         self, document_id: UUID, version_intent: int
@@ -51,7 +51,7 @@ class AssembledDocumentRepository:
             )
         )
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        return cast(AssembledDocument | None, result.scalar_one_or_none())
 
     async def get_by_section_output_batch(
         self, section_output_batch_id: UUID
@@ -60,12 +60,12 @@ class AssembledDocumentRepository:
             AssembledDocument.section_output_batch_id == section_output_batch_id
         )
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        return cast(AssembledDocument | None, result.scalar_one_or_none())
 
     async def get_by_assembly_hash(self, assembly_hash: str) -> AssembledDocument | None:
         stmt = select(AssembledDocument).where(AssembledDocument.assembly_hash == assembly_hash)
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        return cast(AssembledDocument | None, result.scalar_one_or_none())
 
     async def get_validated_by_document(self, document_id: UUID) -> Sequence[AssembledDocument]:
         stmt = (
@@ -80,7 +80,7 @@ class AssembledDocumentRepository:
             .order_by(AssembledDocument.version_intent.desc())
         )
         result = await self.session.execute(stmt)
-        return result.scalars().all()
+        return cast(Sequence[AssembledDocument], result.scalars().all())
 
     async def mark_in_progress(self, assembled_doc_id: UUID) -> AssembledDocument | None:
         assembled_doc = await self.get_by_id(assembled_doc_id)
@@ -189,7 +189,7 @@ class AssembledDocumentRepository:
             .limit(1)
         )
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        return cast(AssembledDocument | None, result.scalar_one_or_none())
 
     async def exists_for_batch(self, section_output_batch_id: UUID) -> bool:
         stmt = select(AssembledDocument.id).where(
@@ -230,4 +230,4 @@ class AssembledDocumentRepository:
             )
         )
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        return cast(AssembledDocument | None, result.scalar_one_or_none())

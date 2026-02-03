@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -41,7 +41,7 @@ async def create_template(
     template = await service.create_template(data)
     await service.repo.session.commit()
     await service.repo.session.refresh(template)
-    return TemplateResponse.model_validate(template)
+    return cast(TemplateResponse, TemplateResponse.model_validate(template))
 
 
 @router.get("/{template_id}", response_model=TemplateResponse)
@@ -55,7 +55,7 @@ async def get_template(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Template {template_id} not found",
         )
-    return TemplateResponse.model_validate(template)
+    return cast(TemplateResponse, TemplateResponse.model_validate(template))
 
 
 @router.patch("/{template_id}", response_model=TemplateResponse)
@@ -72,7 +72,7 @@ async def update_template(
         )
     await service.repo.session.commit()
     await service.repo.session.refresh(template)
-    return TemplateResponse.model_validate(template)
+    return cast(TemplateResponse, TemplateResponse.model_validate(template))
 
 
 @router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -133,7 +133,7 @@ async def create_template_version(
     except Exception:
         pass
 
-    return TemplateVersionResponse.model_validate(version)
+    return cast(TemplateVersionResponse, TemplateVersionResponse.model_validate(version))
 
 
 @router.get("/{template_id}/versions", response_model=list[TemplateVersionResponse])
@@ -157,7 +157,7 @@ async def get_template_version(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_number} not found for template {template_id}",
         )
-    return TemplateVersionResponse.model_validate(version)
+    return cast(TemplateVersionResponse, TemplateVersionResponse.model_validate(version))
 
 
 @router.get("/{template_id}/versions/{version_number}/parsed")

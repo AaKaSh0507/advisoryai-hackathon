@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
-from typing import Optional, Sequence
+from typing import Optional, Sequence, cast
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +20,7 @@ class JobRepository:
     async def get_by_id(self, job_id: uuid.UUID) -> Optional[Job]:
         stmt = select(Job).where(Job.id == job_id)
         result = await self.session.execute(stmt)
-        return result.scalar_one_or_none()
+        return cast(Optional[Job], result.scalar_one_or_none())
 
     async def list_all(
         self,
@@ -36,7 +36,7 @@ class JobRepository:
             stmt = stmt.where(Job.job_type == job_type)
         stmt = stmt.offset(skip).limit(limit).order_by(Job.created_at.desc())
         result = await self.session.execute(stmt)
-        return result.scalars().all()
+        return cast(Sequence[Job], result.scalars().all())
 
     async def list_by_entity(
         self,
@@ -54,7 +54,7 @@ class JobRepository:
             .order_by(Job.created_at.desc())
         )
         result = await self.session.execute(stmt)
-        return result.scalars().all()
+        return cast(Sequence[Job], result.scalars().all())
 
     async def claim_pending_job(
         self, worker_id: str, job_types: Optional[list[JobType]] = None
@@ -70,7 +70,7 @@ class JobRepository:
             stmt = stmt.where(Job.job_type.in_(job_types))
 
         result = await self.session.execute(stmt)
-        job = result.scalar_one_or_none()
+        job = cast(Optional[Job], result.scalar_one_or_none())
 
         if job:
             job.status = JobStatus.RUNNING
@@ -114,7 +114,7 @@ class JobRepository:
             )
         )
         result = await self.session.execute(stmt)
-        return result.scalars().all()
+        return cast(Sequence[Job], result.scalars().all())
 
     async def reset_stuck_job(self, job_id: uuid.UUID, reason: str) -> Optional[Job]:
         job = await self.get_by_id(job_id)

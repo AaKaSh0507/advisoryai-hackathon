@@ -57,7 +57,7 @@ class ClassificationService:
                 errors.append(error_msg)
                 fallback_result = self._create_fallback_classification(block)
                 classifications.append(fallback_result)
-        _sections = await self._persist_classifications(
+        await self._persist_classifications(
             template_version_id=template_version_id,
             classifications=classifications,
             section_repo=section_repo,
@@ -114,7 +114,7 @@ class ClassificationService:
         )
 
     def _build_context(self, index: int, blocks: list[DocumentBlock]) -> dict[str, Any]:
-        context = {
+        context: dict[str, Any] = {
             "position_in_document": index,
             "total_blocks": len(blocks),
         }

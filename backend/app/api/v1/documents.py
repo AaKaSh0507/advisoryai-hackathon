@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -60,7 +60,7 @@ async def create_document(
     except Exception:
         pass
 
-    return DocumentResponse.model_validate(doc)
+    return cast(DocumentResponse, DocumentResponse.model_validate(doc))
 
 
 @router.get("/{document_id}", response_model=DocumentResponse)
@@ -74,7 +74,7 @@ async def get_document(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Document {document_id} not found",
         )
-    return DocumentResponse.model_validate(doc)
+    return cast(DocumentResponse, DocumentResponse.model_validate(doc))
 
 
 @router.get("/{document_id}/versions", response_model=list[DocumentVersionResponse])
@@ -98,4 +98,4 @@ async def get_document_version(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Version {version_number} not found for document {document_id}",
         )
-    return DocumentVersionResponse.model_validate(version)
+    return cast(DocumentVersionResponse, DocumentVersionResponse.model_validate(version))

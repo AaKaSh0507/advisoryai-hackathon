@@ -263,8 +263,8 @@ class WordDocumentParser:
                     return 1
         if hasattr(para.style, "paragraph_format") and para.style.paragraph_format:
             outline_level = para.style.paragraph_format.outline_level
-            if outline_level is not None and outline_level < 9:
-                return outline_level + 1
+            if outline_level is not None and int(outline_level) < 9:
+                return int(outline_level) + 1
 
         return None
 
@@ -394,7 +394,7 @@ class WordDocumentParser:
                 ("even", section.even_page_header),
             ]:
                 if header and header.paragraphs:
-                    content = []
+                    content: list[ParagraphBlock] = []
                     for para in header.paragraphs:
                         text = para.text.strip()
                         if text:
@@ -473,11 +473,11 @@ class WordDocumentParser:
             return None
 
         if indent_type == "left" and pf.left_indent:
-            return pf.left_indent.pt
+            return float(pf.left_indent.pt)
         elif indent_type == "right" and pf.right_indent:
-            return pf.right_indent.pt
+            return float(pf.right_indent.pt)
         elif indent_type == "first_line" and pf.first_line_indent:
-            return pf.first_line_indent.pt
+            return float(pf.first_line_indent.pt)
 
         return None
 
@@ -487,8 +487,8 @@ class WordDocumentParser:
             return None
 
         if spacing_type == "before" and pf.space_before:
-            return pf.space_before.pt
+            return float(pf.space_before.pt)
         elif spacing_type == "after" and pf.space_after:
-            return pf.space_after.pt
+            return float(pf.space_after.pt)
 
         return None

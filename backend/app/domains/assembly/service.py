@@ -328,7 +328,7 @@ class DocumentAssemblyService:
                 error_message=f"No parsed template found for version {request.template_version_id}",
             )
 
-        section_outputs = await self.section_output_repository.get_validated_outputs_by_batch(
+        section_outputs = await self.section_output_repository.get_validated_outputs(
             request.section_output_batch_id
         )
 
@@ -408,10 +408,12 @@ class DocumentAssemblyService:
 
             await self.repository.mark_validated(assembled_doc.id)
 
-            assembled_doc = await self.repository.get_by_id(assembled_doc.id)
+            refreshed_doc = await self.repository.get_by_id(assembled_doc.id)
+            if not refreshed_doc:
+                raise RuntimeError(f"Failed to retrieve assembled document {assembled_doc.id}")
 
             assembled_schema = self._build_assembled_schema(
-                assembled_doc=assembled_doc,
+                assembled_doc=refreshed_doc,
                 assembled_blocks=assembly_result["assembled_blocks"],
                 injection_results=assembly_result["injection_results"],
                 validation_result=assembly_result["validation_result"],
@@ -492,11 +494,11 @@ class DocumentAssemblyService:
 
         for block in parsed_doc.blocks:
             block_path = f"body/block/{block.sequence}"
-            section = path_to_section.get(block_path)
+            maybe_section = path_to_section.get(block_path)
 
-            if section and section.section_type == SectionType.DYNAMIC:
+            if maybe_section and maybe_section.section_type == SectionType.DYNAMIC:
                 dynamic_count += 1
-                output = output_map.get(section.id)
+                output = output_map.get(maybe_section.id)
 
                 if output and output.generated_content:
                     if isinstance(block, ParagraphBlock):
@@ -511,8 +513,8 @@ class DocumentAssemblyService:
                         block_data, content_hash = self.content_injector.preserve_block(block)
                         injection_results.append(
                             SectionInjectionResult(
-                                section_id=section.id,
-                                structural_path=section.structural_path,
+                                section_id=maybe_section.id,
+                                structural_path=maybe_section.structural_path,
                                 was_injected=False,
                                 error_message=f"Unsupported block type for injection: {block.block_type}",
                             )
@@ -521,7 +523,7 @@ class DocumentAssemblyService:
                             {
                                 **block_data,
                                 "is_dynamic": True,
-                                "section_id": section.id,
+                                "section_id": maybe_section.id,
                                 "original_content_hash": compute_block_content_hash(block),
                                 "assembled_content_hash": content_hash,
                                 "was_modified": False,
@@ -531,8 +533,8 @@ class DocumentAssemblyService:
 
                     injection_results.append(
                         SectionInjectionResult(
-                            section_id=section.id,
-                            structural_path=section.structural_path,
+                            section_id=maybe_section.id,
+                            structural_path=maybe_section.structural_path,
                             was_injected=True,
                             original_content_hash=compute_block_content_hash(block),
                             injected_content_hash=content_hash,
@@ -545,7 +547,7 @@ class DocumentAssemblyService:
                         {
                             **block_data,
                             "is_dynamic": True,
-                            "section_id": section.id,
+                            "section_id": maybe_section.id,
                             "original_content_hash": compute_block_content_hash(block),
                             "assembled_content_hash": content_hash,
                             "was_modified": True,
@@ -557,7 +559,7 @@ class DocumentAssemblyService:
                         {
                             **block_data,
                             "is_dynamic": True,
-                            "section_id": section.id,
+                            "section_id": maybe_section.id,
                             "original_content_hash": content_hash,
                             "assembled_content_hash": content_hash,
                             "was_modified": False,
@@ -571,7 +573,7 @@ class DocumentAssemblyService:
                     {
                         **block_data,
                         "is_dynamic": False,
-                        "section_id": section.id if section else None,
+                        "section_id": maybe_section.id if maybe_section else None,
                         "original_content_hash": content_hash,
                         "assembled_content_hash": content_hash,
                         "was_modified": False,

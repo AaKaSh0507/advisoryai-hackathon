@@ -59,7 +59,8 @@ class StorageService:
         content = self.get_file(key)
         if content:
             try:
-                return json.loads(content.decode("utf-8"))
+                result = json.loads(content.decode("utf-8"))
+                return dict(result) if isinstance(result, dict) else None
             except (json.JSONDecodeError, UnicodeDecodeError) as e:
                 logger.error(f"Failed to parse JSON from {key}: {e}")
                 return None
@@ -84,10 +85,19 @@ class StorageService:
         )
         return key
 
+    def get_document_output(self, document_id: uuid.UUID, version: int) -> bytes | None:
+        key = f"documents/{document_id}/{version}/output.docx"
+        return self.get_file(key)
+
+    def document_output_exists(self, document_id: uuid.UUID, version: int) -> bool:
+        key = f"documents/{document_id}/{version}/output.docx"
+        return self.file_exists(key)
+
     def get_file(self, key: str) -> bytes | None:
         try:
             response = self.client.get_object(Bucket=self.bucket_name, Key=key)
-            return response["Body"].read()
+            body_content = response["Body"].read()
+            return bytes(body_content) if body_content else None
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
             if error_code == "NoSuchKey":

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Optional, Sequence
+from typing import Optional, Sequence, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,4 +40,4 @@ class AuditRepository:
             stmt = stmt.where(AuditLog.timestamp <= to_timestamp)
         stmt = stmt.offset(skip).limit(limit).order_by(AuditLog.timestamp.desc())
         result = await self.session.execute(stmt)
-        return result.scalars().all()
+        return cast(Sequence[AuditLog], result.scalars().all())
