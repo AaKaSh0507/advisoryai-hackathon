@@ -307,9 +307,9 @@ class GenerationPipelineHandler(JobHandler):
             response = await section_generation_service.execute_section_generation(request)
             state.output_batch_id = response.batch_id
 
-            if response.failed_count > 0:
+            if response.failed_sections > 0:
                 state.error = (
-                    f"Section generation had {response.failed_count} failures "
+                    f"Section generation had {response.failed_sections} failures "
                     f"out of {response.total_sections} sections"
                 )
                 state.error_stage = PipelineStage.SECTION_GENERATION
@@ -317,7 +317,7 @@ class GenerationPipelineHandler(JobHandler):
 
             logger.info(
                 f"Section generation completed: batch {response.batch_id}, "
-                f"{response.completed_count} sections generated"
+                f"{response.completed_sections} sections generated"
             )
 
         except Exception as e:
