@@ -16,6 +16,7 @@ from backend.app.domains.assembly.schemas import (
     compute_block_content_hash,
     compute_text_hash,
 )
+from backend.app.domains.audit.generation_audit_service import GenerationAuditService
 from backend.app.domains.generation.section_output_models import SectionOutput
 from backend.app.domains.generation.section_output_repository import SectionOutputRepository
 from backend.app.domains.parsing.repository import ParsedDocumentRepository
@@ -297,6 +298,7 @@ class DocumentAssemblyService:
         section_output_repository: SectionOutputRepository,
         parsed_document_repository: ParsedDocumentRepository,
         section_repository: SectionRepository,
+        generation_audit_service: GenerationAuditService | None = None,
     ):
         self.repository = repository
         self.section_output_repository = section_output_repository
@@ -304,6 +306,7 @@ class DocumentAssemblyService:
         self.section_repository = section_repository
         self.integrity_validator = StructuralIntegrityValidator()
         self.content_injector = ContentInjector()
+        self.generation_audit_service = generation_audit_service
 
     async def assemble_document(self, request: AssemblyRequest) -> AssemblyResult:
         start_time = time.time()
@@ -420,6 +423,21 @@ class DocumentAssemblyService:
                 metadata=parsed_doc.metadata,
             )
 
+            if self.generation_audit_service:
+                await self.generation_audit_service.log_document_assembly_completed(
+                    assembled_document_id=refreshed_doc.id,
+                    document_id=request.document_id,
+                    template_version_id=request.template_version_id,
+                    version_intent=request.version_intent,
+                    total_blocks=len(assembly_result["assembled_blocks"]),
+                    dynamic_blocks_count=assembly_result["dynamic_count"],
+                    static_blocks_count=assembly_result["static_count"],
+                    injected_sections_count=len(
+                        [r for r in assembly_result["injection_results"] if r.was_injected]
+                    ),
+                    assembly_hash=final_hash,
+                )
+
             return AssemblyResult(
                 success=True,
                 assembled_document=assembled_schema,
@@ -430,6 +448,15 @@ class DocumentAssemblyService:
 
         except Exception as e:
             logger.error(f"Assembly failed: {e}", exc_info=True)
+            if self.generation_audit_service:
+                await self.generation_audit_service.log_document_assembly_failed(
+                    assembled_document_id=assembled_doc.id,
+                    document_id=request.document_id,
+                    template_version_id=request.template_version_id,
+                    version_intent=request.version_intent,
+                    error_code="ASSEMBLY_EXCEPTION",
+                    error_message=str(e),
+                )
             await self.repository.mark_failed(
                 assembled_doc.id,
                 AssemblyErrorCode.STRUCTURAL_MISMATCH.value,

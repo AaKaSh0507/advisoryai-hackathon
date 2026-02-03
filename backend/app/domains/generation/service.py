@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from uuid import UUID
 
+from backend.app.domains.audit.generation_audit_service import GenerationAuditService
 from backend.app.domains.generation.errors import (
     InputValidationError,
     MalformedSectionMetadataError,
@@ -37,9 +38,11 @@ class GenerationInputService:
         self,
         generation_repo: GenerationInputRepository,
         section_repo: SectionRepository,
+        generation_audit_service: GenerationAuditService | None = None,
     ):
         self.generation_repo = generation_repo
         self.section_repo = section_repo
+        self.generation_audit_service = generation_audit_service
 
     async def prepare_generation_inputs(
         self,
@@ -126,6 +129,15 @@ class GenerationInputService:
             )
             for inp in batch.inputs
         ]
+
+        if self.generation_audit_service:
+            await self.generation_audit_service.log_generation_initiated(
+                batch_id=batch.id,
+                document_id=batch.document_id,
+                template_version_id=batch.template_version_id,
+                version_intent=batch.version_intent,
+                total_sections=len(input_responses),
+            )
 
         return PrepareGenerationInputsResponse(
             batch_id=batch.id,

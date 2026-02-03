@@ -5,6 +5,7 @@ from uuid import UUID
 
 from backend.app.domains.assembly.models import AssembledDocument, AssemblyStatus
 from backend.app.domains.assembly.repository import AssembledDocumentRepository
+from backend.app.domains.audit.generation_audit_service import GenerationAuditService
 from backend.app.domains.rendering.engine import DocumentRenderer
 from backend.app.domains.rendering.models import RenderedDocument
 from backend.app.domains.rendering.repository import RenderedDocumentRepository
@@ -29,12 +30,14 @@ class DocumentRenderingService:
         repository: RenderedDocumentRepository,
         assembled_document_repository: AssembledDocumentRepository,
         storage: StorageService,
+        generation_audit_service: GenerationAuditService | None = None,
     ):
         self.repository = repository
         self.assembled_document_repository = assembled_document_repository
         self.storage = storage
         self.renderer = DocumentRenderer()
         self.validator = RenderedDocumentValidator()
+        self.generation_audit_service = generation_audit_service
 
     async def render_document(self, request: RenderingRequest) -> RenderingResult:
         start_time = time.time()
@@ -156,6 +159,17 @@ class DocumentRenderingService:
                 validation_result=validation_result.model_dump(),
             )
 
+            if self.generation_audit_service:
+                await self.generation_audit_service.log_document_rendering_completed(
+                    rendered_document_id=rendered_doc.id,
+                    document_id=request.document_id,
+                    version=request.version,
+                    output_path=output_path,
+                    content_hash=content_hash,
+                    file_size_bytes=len(content),
+                    total_blocks_rendered=statistics.total_blocks,
+                )
+
             return RenderingResult(
                 success=True,
                 rendered_document=self._to_schema(rendered_doc),
@@ -166,6 +180,14 @@ class DocumentRenderingService:
 
         except Exception as e:
             logger.error(f"Rendering failed with exception: {e}")
+            if self.generation_audit_service and rendered_doc:
+                await self.generation_audit_service.log_document_rendering_failed(
+                    rendered_document_id=rendered_doc.id,
+                    document_id=request.document_id,
+                    version=request.version,
+                    error_code="RENDERING_EXCEPTION",
+                    error_message=str(e),
+                )
             return self._create_error_result(
                 RenderErrorCode.RENDERING_FAILED,
                 str(e),
