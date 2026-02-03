@@ -49,7 +49,7 @@ class TestDynamicSectionsContainGeneratedContent:
         assembly_service.repository.mark_completed.return_value = mock_assembled
         assembly_service.repository.mark_validated.return_value = mock_assembled
         assembly_service.repository.get_by_id.return_value = mock_assembled
-        assembly_service.section_output_repository.get_validated_outputs_by_batch.return_value = [
+        assembly_service.section_output_repository.get_validated_outputs.return_value = [
             validated_section_output
         ]
 
@@ -119,7 +119,7 @@ class TestDynamicSectionsContainGeneratedContent:
             section_1,
             section_2,
         ]
-        assembly_service.section_output_repository.get_validated_outputs_by_batch.return_value = [
+        assembly_service.section_output_repository.get_validated_outputs.return_value = [
             output_1,
             output_2,
         ]
@@ -160,7 +160,7 @@ class TestStaticSectionsRemainUnchanged:
         assembly_service.repository.mark_completed.return_value = mock_assembled
         assembly_service.repository.mark_validated.return_value = mock_assembled
         assembly_service.repository.get_by_id.return_value = mock_assembled
-        assembly_service.section_output_repository.get_validated_outputs_by_batch.return_value = [
+        assembly_service.section_output_repository.get_validated_outputs.return_value = [
             validated_section_output
         ]
 
@@ -199,7 +199,7 @@ class TestOrderingAndHierarchyPreserved:
         assembly_service.repository.mark_completed.return_value = mock_assembled
         assembly_service.repository.mark_validated.return_value = mock_assembled
         assembly_service.repository.get_by_id.return_value = mock_assembled
-        assembly_service.section_output_repository.get_validated_outputs_by_batch.return_value = [
+        assembly_service.section_output_repository.get_validated_outputs.return_value = [
             validated_section_output
         ]
 

@@ -22,7 +22,7 @@ class TestAssemblyFailsWithoutValidatedContent:
         assembly_request: AssemblyRequest,
         dynamic_section: Section,
     ):
-        assembly_service.section_output_repository.get_validated_outputs_by_batch.return_value = []
+        assembly_service.section_output_repository.get_validated_outputs.return_value = []
 
         result = await assembly_service.assemble_document(assembly_request)
 
@@ -41,7 +41,7 @@ class TestAssemblyFailsWithoutValidatedContent:
         unvalidated_output.generated_content = "Some content"
         unvalidated_output.is_validated = False
 
-        assembly_service.section_output_repository.get_validated_outputs_by_batch.return_value = [
+        assembly_service.section_output_repository.get_validated_outputs.return_value = [
             unvalidated_output
         ]
 
@@ -63,7 +63,7 @@ class TestAssemblyFailsWithoutValidatedContent:
         empty_output.generated_content = None
         empty_output.is_validated = True
 
-        assembly_service.section_output_repository.get_validated_outputs_by_batch.return_value = [
+        assembly_service.section_output_repository.get_validated_outputs.return_value = [
             empty_output
         ]
 
@@ -271,7 +271,7 @@ class TestNoSilentCorrections:
         invalid_output.generated_content = ""
         invalid_output.is_validated = True
 
-        assembly_service.section_output_repository.get_validated_outputs_by_batch.return_value = [
+        assembly_service.section_output_repository.get_validated_outputs.return_value = [
             invalid_output
         ]
 

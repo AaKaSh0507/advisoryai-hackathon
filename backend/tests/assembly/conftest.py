@@ -279,7 +279,7 @@ def mock_repository() -> AsyncMock:
 @pytest.fixture
 def mock_section_output_repository() -> AsyncMock:
     repo = AsyncMock()
-    repo.get_validated_outputs_by_batch = AsyncMock(return_value=[])
+    repo.get_validated_outputs = AsyncMock(return_value=[])
     return repo
 
 
