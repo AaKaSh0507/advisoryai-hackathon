@@ -245,21 +245,21 @@ class TestClassificationHandler:
         assert callable(handler.handle)
 
 
-class TestGenerationHandler:
-    """Tests for generation handler."""
+class TestGenerationPipelineHandler:
+    """Tests for generation pipeline handler."""
 
-    def test_generation_handler_exists(self):
-        """Generation handler should be importable."""
-        from backend.app.worker.handlers.generation import GenerationHandler
+    def test_generation_pipeline_handler_exists(self):
+        """Generation pipeline handler should be importable."""
+        from backend.app.worker.handlers.generation_pipeline import GenerationPipelineHandler
 
-        handler = GenerationHandler()
-        assert handler.name == "GenerationHandler"
+        handler = GenerationPipelineHandler()
+        assert handler.name == "GenerationPipelineHandler"
 
-    def test_generation_handler_has_handle_method(self):
+    def test_generation_pipeline_handler_has_handle_method(self):
         """Handler should have async handle method."""
-        from backend.app.worker.handlers.generation import GenerationHandler
+        from backend.app.worker.handlers.generation_pipeline import GenerationPipelineHandler
 
-        handler = GenerationHandler()
+        handler = GenerationPipelineHandler()
         assert hasattr(handler, "handle")
         assert callable(handler.handle)
 
