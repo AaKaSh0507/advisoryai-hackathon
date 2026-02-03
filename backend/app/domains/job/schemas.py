@@ -23,6 +23,9 @@ class ClassifyJobCreate(BaseModel):
 class GenerateJobCreate(BaseModel):
     template_version_id: UUID
     document_id: UUID
+    version_intent: int = Field(default=1, ge=1)
+    client_data: dict[str, Any] = Field(default_factory=dict)
+    force_regenerate: bool = False
 
 
 class JobResponse(BaseModel):

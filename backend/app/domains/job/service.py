@@ -95,6 +95,9 @@ class JobService:
             payload={
                 "template_version_id": str(data.template_version_id),
                 "document_id": str(data.document_id),
+                "version_intent": data.version_intent,
+                "client_data": data.client_data,
+                "force_regenerate": data.force_regenerate,
             },
             status=JobStatus.PENDING,
         )

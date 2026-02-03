@@ -182,6 +182,15 @@ class TestImmutability:
         error_code = "GENERATION_TIMEOUT"
         error_message = "Section generation timed out after 30s"
 
+        await generation_audit_service.log_section_generation_failed(
+            section_output_id=section_output_id,
+            batch_id=batch_id,
+            section_id=1,
+            document_id=document_id,
+            error_code=error_code,
+            error_message=error_message,
+        )
+
         retrieved_logs = await audit_repository.query(entity_id=section_output_id)
         assert len(retrieved_logs) == 1
 

@@ -1,14 +1,13 @@
 from backend.app.domains.job.models import JobType
-from backend.app.worker.handlers.base import JobHandler, HandlerContext, HandlerResult
-from backend.app.worker.handlers.parsing import ParsingHandler
+from backend.app.worker.handlers.base import HandlerContext, HandlerResult, JobHandler
 from backend.app.worker.handlers.classification import ClassificationHandler
-from backend.app.worker.handlers.generation import GenerationHandler
-
+from backend.app.worker.handlers.generation_pipeline import GenerationPipelineHandler
+from backend.app.worker.handlers.parsing import ParsingHandler
 
 _handlers: dict[JobType, JobHandler] = {
     JobType.PARSE: ParsingHandler(),
     JobType.CLASSIFY: ClassificationHandler(),
-    JobType.GENERATE: GenerationHandler(),
+    JobType.GENERATE: GenerationPipelineHandler(),
 }
 
 

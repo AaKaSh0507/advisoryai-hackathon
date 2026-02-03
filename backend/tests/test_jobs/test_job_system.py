@@ -425,7 +425,7 @@ class TestJobHandlers:
         handler = get_handler_for_job_type(JobType.GENERATE)
 
         assert handler is not None
-        assert handler.name == "GenerationHandler"
+        assert handler.name == "GenerationPipelineHandler"
 
     def test_unknown_job_type_raises_error(self):
         """Unknown job type should raise ValueError."""
