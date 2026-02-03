@@ -28,6 +28,27 @@ class GenerateJobCreate(BaseModel):
     force_regenerate: bool = False
 
 
+class RegenerateJobCreate(BaseModel):
+    """Request to create a full regeneration job."""
+
+    document_id: UUID
+    version_intent: int = Field(ge=1)
+    client_data: dict[str, Any] = Field(default_factory=dict)
+    correlation_id: str | None = None
+
+
+class RegenerateSectionsJobCreate(BaseModel):
+    """Request to create a section-level regeneration job."""
+
+    document_id: UUID
+    template_version_id: UUID
+    version_intent: int = Field(ge=1)
+    section_ids: list[int] = Field(min_length=1)
+    reuse_section_ids: list[int] = Field(default_factory=list)
+    client_data: dict[str, Any] = Field(default_factory=dict)
+    correlation_id: str | None = None
+
+
 class JobResponse(BaseModel):
     id: UUID
     job_type: JobType

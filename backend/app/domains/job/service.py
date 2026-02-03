@@ -10,6 +10,8 @@ from backend.app.domains.job.schemas import (
     JobStatusResponse,
     ParseJobCreate,
     PipelineStatusResponse,
+    RegenerateJobCreate,
+    RegenerateSectionsJobCreate,
 )
 from backend.app.logging_config import get_logger
 
@@ -103,6 +105,47 @@ class JobService:
         )
         created = await self.repo.create(job)
         logger.info(f"Created GENERATE job {created.id} for document {data.document_id}")
+        return created
+
+    async def create_regenerate_job(self, data: "RegenerateJobCreate") -> Job:
+        """Create a full document regeneration job."""
+        job = Job(
+            job_type=JobType.REGENERATE,
+            payload={
+                "document_id": str(data.document_id),
+                "version_intent": data.version_intent,
+                "client_data": data.client_data,
+                "correlation_id": data.correlation_id,
+            },
+            status=JobStatus.PENDING,
+        )
+        created = await self.repo.create(job)
+        logger.info(
+            f"Created REGENERATE job {created.id} for document {data.document_id}, "
+            f"version_intent: {data.version_intent}"
+        )
+        return created
+
+    async def create_regenerate_sections_job(self, data: "RegenerateSectionsJobCreate") -> Job:
+        """Create a section-level regeneration job."""
+        job = Job(
+            job_type=JobType.REGENERATE_SECTIONS,
+            payload={
+                "document_id": str(data.document_id),
+                "template_version_id": str(data.template_version_id),
+                "version_intent": data.version_intent,
+                "section_ids": data.section_ids,
+                "reuse_section_ids": data.reuse_section_ids,
+                "client_data": data.client_data,
+                "correlation_id": data.correlation_id,
+            },
+            status=JobStatus.PENDING,
+        )
+        created = await self.repo.create(job)
+        logger.info(
+            f"Created REGENERATE_SECTIONS job {created.id} for document {data.document_id}, "
+            f"sections: {data.section_ids}, reuse: {data.reuse_section_ids}"
+        )
         return created
 
     async def claim_job(

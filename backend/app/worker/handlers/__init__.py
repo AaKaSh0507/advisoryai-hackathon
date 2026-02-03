@@ -3,11 +3,17 @@ from backend.app.worker.handlers.base import HandlerContext, HandlerResult, JobH
 from backend.app.worker.handlers.classification import ClassificationHandler
 from backend.app.worker.handlers.generation_pipeline import GenerationPipelineHandler
 from backend.app.worker.handlers.parsing import ParsingHandler
+from backend.app.worker.handlers.regeneration import (
+    FullRegenerationHandler,
+    SectionRegenerationHandler,
+)
 
 _handlers: dict[JobType, JobHandler] = {
     JobType.PARSE: ParsingHandler(),
     JobType.CLASSIFY: ClassificationHandler(),
     JobType.GENERATE: GenerationPipelineHandler(),
+    JobType.REGENERATE: FullRegenerationHandler(),
+    JobType.REGENERATE_SECTIONS: SectionRegenerationHandler(),
 }
 
 

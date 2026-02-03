@@ -77,8 +77,23 @@ class TemplateService:
                 "template_id": str(template_id),
                 "version_number": version_number,
                 "source_doc_path": source_path,
+                "previous_version_number": (version_number - 1) if version_number > 1 else None,
             },
         )
         await self.audit_repo.create(audit_log)
 
         return created_version
+
+    async def get_template_version(self, version_id: UUID) -> Optional[TemplateVersion]:
+        """Get a specific template version by ID."""
+        return await self.repo.get_version_by_id(version_id)
+
+    async def get_template_version_by_number(
+        self, template_id: UUID, version_number: int
+    ) -> Optional[TemplateVersion]:
+        """Get a specific template version by template ID and version number."""
+        return await self.repo.get_version(template_id, version_number)
+
+    async def list_template_versions(self, template_id: UUID) -> Sequence[TemplateVersion]:
+        """List all versions for a template."""
+        return await self.repo.list_versions(template_id)

@@ -8,14 +8,17 @@ from backend.app.config import get_settings
 from backend.app.domains.document.schemas import (
     DocumentCreate,
     DocumentResponse,
+    DocumentUpdateTemplateVersion,
     DocumentVersionResponse,
 )
 from backend.app.domains.document.service import DocumentService
 from backend.app.domains.job.schemas import GenerateJobCreate
 from backend.app.domains.job.service import JobService
 from backend.app.infrastructure.redis import get_redis_client
+from backend.app.logging_config import get_logger
 
 router = APIRouter()
+logger = get_logger("app.api.v1.documents")
 DocumentServiceDep = Annotated[DocumentService, Depends(get_document_service)]
 JobServiceDep = Annotated[JobService, Depends(get_job_service)]
 
@@ -99,3 +102,69 @@ async def get_document_version(
             detail=f"Version {version_number} not found for document {document_id}",
         )
     return cast(DocumentVersionResponse, DocumentVersionResponse.model_validate(version))
+
+
+@router.patch(
+    "/{document_id}/template-version",
+    response_model=DocumentResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update document template version",
+    description="Update the template version for a document. Existing versions remain unchanged.",
+)
+async def update_document_template_version(
+    document_id: UUID,
+    data: DocumentUpdateTemplateVersion,
+    service: DocumentServiceDep,
+    job_service: JobServiceDep,
+) -> DocumentResponse:
+    """
+    Update a document's template version.
+
+    - Existing document versions remain tied to their original template versions
+    - Future regenerations will use the new template version
+    - Audit trail captures the template version transition
+    """
+    # Validate document exists
+    doc = await service.get_document(document_id)
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document {document_id} not found",
+        )
+
+    # Validate new template version pipeline is ready
+    pipeline_status = await job_service.get_pipeline_status(data.new_template_version_id)
+    if pipeline_status.has_failed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Template version {data.new_template_version_id} pipeline has failed. "
+            f"Current stage: {pipeline_status.current_stage}",
+        )
+
+    if pipeline_status.current_stage not in {"READY_FOR_GENERATE", "GENERATE", "COMPLETE"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Template version {data.new_template_version_id} is not ready for document generation. "
+            f"Current stage: {pipeline_status.current_stage}",
+        )
+
+    logger.info(
+        f"Updating template version for document {document_id}: "
+        f"{doc.template_version_id} -> {data.new_template_version_id}"
+    )
+
+    updated_doc = await service.update_document_template_version(
+        document_id,
+        data.new_template_version_id,
+    )
+
+    if not updated_doc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update document template version",
+        )
+
+    await service.repo.session.commit()
+    await service.repo.session.refresh(updated_doc)
+
+    return cast(DocumentResponse, DocumentResponse.model_validate(updated_doc))

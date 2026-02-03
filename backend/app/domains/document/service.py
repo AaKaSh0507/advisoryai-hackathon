@@ -1,19 +1,17 @@
-from typing import Optional, BinaryIO
+from typing import BinaryIO, Optional
 from uuid import UUID
 
-from backend.app.domains.document.models import Document, DocumentVersion
-from backend.app.domains.document.schemas import DocumentCreate
-from backend.app.domains.document.repository import DocumentRepository
-from backend.app.infrastructure.storage import StorageService
-from backend.app.domains.audit.repository import AuditRepository
 from backend.app.domains.audit.models import AuditLog
+from backend.app.domains.audit.repository import AuditRepository
+from backend.app.domains.document.models import Document, DocumentVersion
+from backend.app.domains.document.repository import DocumentRepository
+from backend.app.domains.document.schemas import DocumentCreate
+from backend.app.infrastructure.storage import StorageService
+
 
 class DocumentService:
     def __init__(
-        self, 
-        repo: DocumentRepository, 
-        storage: StorageService,
-        audit_repo: AuditRepository
+        self, repo: DocumentRepository, storage: StorageService, audit_repo: AuditRepository
     ):
         self.repo = repo
         self.storage = storage
@@ -21,23 +19,55 @@ class DocumentService:
 
     async def get_document(self, document_id: UUID) -> Optional[Document]:
         return await self.repo.get_by_id(document_id)
-        
+
     async def create_document(self, data: DocumentCreate) -> Document:
-        doc = Document(
-            template_version_id=data.template_version_id,
-            current_version=0
-        )
+        doc = Document(template_version_id=data.template_version_id, current_version=0)
         created_doc = await self.repo.create(doc)
 
         audit_log = AuditLog(
             entity_type="DOCUMENT",
             entity_id=created_doc.id,
             action="CREATE",
-            metadata_={"template_version_id": str(data.template_version_id)}
+            metadata_={"template_version_id": str(data.template_version_id)},
         )
         await self.audit_repo.create(audit_log)
 
         return created_doc
+
+    async def update_document_template_version(
+        self,
+        document_id: UUID,
+        new_template_version_id: UUID,
+    ) -> Optional[Document]:
+        """
+        Update the template version for a document.
+
+        This does NOT modify existing versions - they remain tied to their
+        original template versions. New generations will use the new template.
+
+        Returns the updated document or None if not found.
+        """
+        doc = await self.repo.get_by_id(document_id)
+        if not doc:
+            return None
+
+        old_template_version_id = doc.template_version_id
+        doc.template_version_id = new_template_version_id
+        await self.repo.session.flush()
+
+        # Create audit log for template version change
+        audit_log = AuditLog(
+            entity_type="DOCUMENT",
+            entity_id=document_id,
+            action="UPDATE_TEMPLATE_VERSION",
+            metadata_={
+                "old_template_version_id": str(old_template_version_id),
+                "new_template_version_id": str(new_template_version_id),
+            },
+        )
+        await self.audit_repo.create(audit_log)
+
+        return doc
 
     async def create_document_version(
         self, document_id: UUID, file_obj: BinaryIO, metadata: dict

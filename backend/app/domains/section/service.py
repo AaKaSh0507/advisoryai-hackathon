@@ -1,9 +1,10 @@
-from typing import Optional, Sequence
+from typing import Sequence
 from uuid import UUID
 
 from backend.app.domains.section.models import Section
-from backend.app.domains.section.schemas import SectionCreate
 from backend.app.domains.section.repository import SectionRepository
+from backend.app.domains.section.schemas import SectionCreate
+
 
 class SectionService:
     def __init__(self, repo: SectionRepository):
@@ -19,5 +20,7 @@ class SectionService:
         created = await self.repo.create_batch([section])
         return created[0]
 
-    async def get_sections_by_template_version(self, template_version_id: UUID) -> Sequence[Section]:
+    async def get_sections_by_template_version(
+        self, template_version_id: UUID
+    ) -> Sequence[Section]:
         return await self.repo.get_by_template_version_id(template_version_id)

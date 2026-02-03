@@ -9,8 +9,11 @@ from backend.app.domains.audit.repository import AuditRepository
 from backend.app.domains.audit.service import AuditService
 from backend.app.domains.document.repository import DocumentRepository
 from backend.app.domains.document.service import DocumentService
+from backend.app.domains.generation.repository import GenerationInputRepository
+from backend.app.domains.generation.section_output_repository import SectionOutputRepository
 from backend.app.domains.job.repository import JobRepository
 from backend.app.domains.job.service import JobService
+from backend.app.domains.regeneration.service import RegenerationService
 from backend.app.domains.rendering.repository import RenderedDocumentRepository
 from backend.app.domains.rendering.service import DocumentRenderingService
 from backend.app.domains.section.repository import SectionRepository
@@ -101,3 +104,31 @@ def get_rendering_service(
     storage: Annotated[StorageService, Depends(get_storage_service)],
 ) -> DocumentRenderingService:
     return DocumentRenderingService(repo, assembled_repo, storage)
+
+
+def get_generation_input_repository(session: DbSession) -> GenerationInputRepository:
+    return GenerationInputRepository(session)
+
+
+def get_section_output_repository(session: DbSession) -> SectionOutputRepository:
+    return SectionOutputRepository(session)
+
+
+def get_regeneration_service(
+    document_repo: Annotated[DocumentRepository, Depends(get_document_repository)],
+    section_repo: Annotated[SectionRepository, Depends(get_section_repository)],
+    template_repo: Annotated[TemplateRepository, Depends(get_template_repository)],
+    generation_input_repo: Annotated[
+        GenerationInputRepository, Depends(get_generation_input_repository)
+    ],
+    section_output_repo: Annotated[SectionOutputRepository, Depends(get_section_output_repository)],
+    audit_repo: Annotated[AuditRepository, Depends(get_audit_repository)],
+) -> RegenerationService:
+    return RegenerationService(
+        document_repo=document_repo,
+        section_repo=section_repo,
+        template_repo=template_repo,
+        generation_input_repo=generation_input_repo,
+        section_output_repo=section_output_repo,
+        audit_repo=audit_repo,
+    )
