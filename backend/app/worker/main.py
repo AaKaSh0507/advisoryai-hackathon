@@ -49,7 +49,9 @@ class Worker:
         logger.info(f"Starting worker {self._worker_id} in {settings.app_env} environment")
         self._running = True
         self._shutdown_event = asyncio.Event()
-        self._redis.register_worker(self._worker_id, ttl_seconds=HEARTBEAT_INTERVAL_SECONDS * 2)
+        self._redis.register_worker(
+            self._worker_id, ttl_seconds=int(HEARTBEAT_INTERVAL_SECONDS * 2)
+        )
         for job_type in JobType:
             handler = get_handler_for_job_type(job_type)
             logger.info(f"Handler registered: {job_type.value} -> {handler.name}")

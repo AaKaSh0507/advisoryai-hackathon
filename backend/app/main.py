@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
 from backend.app.api.v1 import router as api_v1_router
@@ -66,6 +67,19 @@ app = FastAPI(
     description="AdvisoryAI Internal Platform - Job System and Pipeline Orchestration",
     version="0.3.0",
     lifespan=lifespan,
+)
+
+# CORS middleware for frontend integration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(api_v1_router)

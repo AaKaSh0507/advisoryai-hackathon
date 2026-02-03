@@ -40,7 +40,7 @@ class DemoSeedResponse(BaseModel):
 class DemoIdsResponse(BaseModel):
     """Response with demo entity IDs."""
 
-    ids: dict[str, str]
+    ids: dict[str, Any]
 
 
 class DemoValidationResponse(BaseModel):
