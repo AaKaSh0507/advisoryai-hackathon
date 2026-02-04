@@ -1,4 +1,4 @@
-from typing import BinaryIO, Optional
+from typing import BinaryIO, Optional, Sequence
 from uuid import UUID
 
 from backend.app.domains.audit.models import AuditLog
@@ -16,6 +16,10 @@ class DocumentService:
         self.repo = repo
         self.storage = storage
         self.audit_repo = audit_repo
+
+    async def list_documents(self) -> Sequence[Document]:
+        """List all documents."""
+        return await self.repo.list_all()
 
     async def get_document(self, document_id: UUID) -> Optional[Document]:
         return await self.repo.get_by_id(document_id)

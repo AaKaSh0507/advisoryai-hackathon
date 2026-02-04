@@ -39,6 +39,7 @@ export function JobMonitor() {
   const [error, setError] = useState<string | null>(null)
   const [downloadingJobId, setDownloadingJobId] = useState<string | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
 
   const loadJobs = useCallback(async () => {
     try {
@@ -273,12 +274,15 @@ export function JobMonitor() {
                   </div>
                 )}
 
-                {job.status === 'COMPLETED' && (
-                  <div className="mt-3 flex flex-col sm:flex-row gap-2">
-                    <button className="flex-1 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-all">
-                      View Details
-                    </button>
-                    {job.type === 'GENERATE' && job.documentId && job.versionNumber ? (
+                {/* View Details button for all jobs */}
+                <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                  <button 
+                    onClick={() => setSelectedJobId(selectedJobId === job.id ? null : job.id)}
+                    className="flex-1 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-all"
+                  >
+                    {selectedJobId === job.id ? 'Hide Details' : 'View Details'}
+                  </button>
+                  {job.status === 'COMPLETED' && job.type === 'GENERATE' && job.documentId && job.versionNumber ? (
                       <button
                         onClick={() => handleDownload(job)}
                         disabled={downloadingJobId === job.id}
@@ -286,7 +290,7 @@ export function JobMonitor() {
                       >
                         {downloadingJobId === job.id ? 'Downloading...' : 'Download Output'}
                       </button>
-                    ) : job.type === 'GENERATE' ? (
+                    ) : job.status === 'COMPLETED' && job.type === 'GENERATE' ? (
                       <button
                         disabled
                         className="flex-1 rounded-lg bg-muted text-muted-foreground px-3 py-2 text-sm font-medium cursor-not-allowed"
@@ -295,6 +299,87 @@ export function JobMonitor() {
                         Download Output
                       </button>
                     ) : null}
+                </div>
+
+                {/* Job Details Panel */}
+                {selectedJobId === job.id && (
+                  <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <h4 className="font-semibold text-foreground">Job Details</h4>
+                      <button
+                        onClick={() => setSelectedJobId(null)}
+                        className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+                      <div>
+                        <label className="text-xs text-muted-foreground">Job ID</label>
+                        <p className="text-sm font-mono text-foreground break-all">{job.id}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Job Type</label>
+                        <p className="text-sm font-medium text-foreground">{job.type}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Template</label>
+                        <p className="text-sm font-medium text-foreground">{job.templateName}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Status</label>
+                        <p className={`text-sm font-medium ${getStatusConfig(job.status).color}`}>
+                          {getStatusConfig(job.status).label}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Started</label>
+                        <p className="text-sm text-foreground">{job.startedAt}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Last Updated</label>
+                        <p className="text-sm text-foreground">{job.updatedAt}</p>
+                      </div>
+                      {job.documentId && (
+                        <div>
+                          <label className="text-xs text-muted-foreground">Document ID</label>
+                          <p className="text-sm font-mono text-foreground break-all">{job.documentId}</p>
+                        </div>
+                      )}
+                      {job.versionNumber && (
+                        <div>
+                          <label className="text-xs text-muted-foreground">Version</label>
+                          <p className="text-sm font-medium text-foreground">v{job.versionNumber}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {job.error && (
+                      <div className="rounded-lg bg-red-400/20 border border-red-400/50 p-3">
+                        <label className="text-xs text-red-300 font-medium">Error Message</label>
+                        <p className="text-sm text-red-300 mt-1">{job.error}</p>
+                      </div>
+                    )}
+
+                    <div className="pt-3 border-t border-border/50">
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-muted-foreground">Progress</span>
+                        <span className="font-medium text-foreground">{Math.round(job.progress)}%</span>
+                      </div>
+                      <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-300 ${
+                            job.status === 'COMPLETED'
+                              ? 'bg-green-500'
+                              : job.status === 'FAILED'
+                                ? 'bg-red-500'
+                                : 'bg-gradient-to-r from-primary to-accent'
+                          }`}
+                          style={{ width: `${job.progress}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

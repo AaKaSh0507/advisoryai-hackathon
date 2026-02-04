@@ -23,7 +23,16 @@ DocumentServiceDep = Annotated[DocumentService, Depends(get_document_service)]
 JobServiceDep = Annotated[JobService, Depends(get_job_service)]
 
 
-@router.post("", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
+@router.get("/", response_model=list[DocumentResponse])
+async def list_documents(
+    service: DocumentServiceDep,
+) -> list[DocumentResponse]:
+    """List all documents ordered by creation date."""
+    docs = await service.list_documents()
+    return [DocumentResponse.model_validate(doc) for doc in docs]
+
+
+@router.post("/", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 async def create_document(
     data: DocumentCreate,
     service: DocumentServiceDep,

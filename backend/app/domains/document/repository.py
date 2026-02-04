@@ -11,6 +11,12 @@ class DocumentRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def list_all(self) -> Sequence[Document]:
+        """List all documents ordered by creation date descending."""
+        stmt = select(Document).order_by(Document.created_at.desc())
+        result = await self.session.execute(stmt)
+        return cast(Sequence[Document], result.scalars().all())
+
     async def create(self, document: Document) -> Document:
         self.session.add(document)
         await self.session.flush()
