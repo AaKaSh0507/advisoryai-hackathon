@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Any, Sequence, cast
 from uuid import UUID
 
@@ -6,6 +5,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.domains.assembly.models import AssembledDocument, AssemblyStatus
+from backend.app.infrastructure.datetime_utils import utc_now
 from backend.app.logging_config import get_logger
 
 logger = get_logger("app.domains.assembly.repository")
@@ -129,7 +129,7 @@ class AssembledDocumentRepository:
         assembled_doc.injected_sections_count = injected_sections_count
         assembled_doc.assembly_duration_ms = assembly_duration_ms
         assembled_doc.assembly_hash = assembly_hash
-        assembled_doc.assembled_at = datetime.utcnow()
+        assembled_doc.assembled_at = utc_now()
         await self.session.flush()
         logger.info(f"Marked assembled document {assembled_doc_id} as completed")
         return assembled_doc
@@ -144,7 +144,7 @@ class AssembledDocumentRepository:
 
         assembled_doc.status = AssemblyStatus.VALIDATED
         assembled_doc.is_immutable = True
-        assembled_doc.validated_at = datetime.utcnow()
+        assembled_doc.validated_at = utc_now()
         await self.session.flush()
         logger.info(f"Marked assembled document {assembled_doc_id} as validated and immutable")
         return assembled_doc

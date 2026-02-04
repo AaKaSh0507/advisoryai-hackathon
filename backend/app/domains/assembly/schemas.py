@@ -16,6 +16,7 @@ from backend.app.domains.parsing.schemas import (
     TableBlock,
     TextRun,
 )
+from backend.app.infrastructure.datetime_utils import utc_now
 
 
 class AssemblyErrorCode(str, PyEnum):
@@ -50,7 +51,7 @@ class AssemblyValidationResult(BaseModel):
     error_codes: list[AssemblyErrorCode] = Field(default_factory=list)
     error_messages: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
-    checked_at: datetime = Field(default_factory=datetime.utcnow)
+    checked_at: datetime = Field(default_factory=utc_now)
 
     @property
     def has_errors(self) -> bool:
@@ -132,7 +133,7 @@ class AssembledDocumentSchema(BaseModel):
     injection_results: list[SectionInjectionResult] = Field(default_factory=list)
     validation_result: AssemblyValidationResult | None = None
     is_immutable: bool = False
-    assembled_at: datetime = Field(default_factory=datetime.utcnow)
+    assembled_at: datetime = Field(default_factory=utc_now)
 
     def compute_assembly_hash(self) -> str:
         content_parts = [

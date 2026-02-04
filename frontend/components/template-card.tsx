@@ -6,6 +6,8 @@ interface TemplateCardProps {
   template: Template
   isSelected: boolean
   onSelect: (id: string) => void
+  onGenerate: (template: Template) => void
+  generating?: boolean
   statusConfig: {
     label: string
     icon: string
@@ -13,11 +15,19 @@ interface TemplateCardProps {
   }
 }
 
-export function TemplateCard({ template, isSelected, onSelect, statusConfig }: TemplateCardProps) {
+export function TemplateCard({ template, isSelected, onSelect, onGenerate, generating, statusConfig }: TemplateCardProps) {
   return (
-    <button
+    <div
       onClick={() => onSelect(isSelected ? '' : template.id)}
-      className={`rounded-lg border-2 p-4 text-left transition-all ${
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onSelect(isSelected ? '' : template.id)
+        }
+      }}
+      className={`rounded-lg border-2 p-4 text-left transition-all cursor-pointer ${
         isSelected ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50 bg-card hover:bg-card/80'
       }`}
     >
@@ -51,15 +61,25 @@ export function TemplateCard({ template, isSelected, onSelect, statusConfig }: T
       {isSelected && (
         <div className="mt-4 pt-4 border-t border-primary/20">
           <div className="flex gap-2">
-            <button className="flex-1 rounded px-2 py-1.5 text-xs font-medium bg-primary/20 text-primary hover:bg-primary/30 transition-all">
+            <button 
+              onClick={(e) => e.stopPropagation()}
+              className="flex-1 rounded px-2 py-1.5 text-xs font-medium bg-primary/20 text-primary hover:bg-primary/30 transition-all"
+            >
               Edit
             </button>
-            <button className="flex-1 rounded px-2 py-1.5 text-xs font-medium bg-muted text-foreground hover:bg-muted/80 transition-all">
-              Generate
+            <button 
+              onClick={(e) => {
+                e.stopPropagation()
+                onGenerate(template)
+              }}
+              disabled={generating || template.status !== 'ready'}
+              className="flex-1 rounded px-2 py-1.5 text-xs font-medium bg-muted text-foreground hover:bg-muted/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {generating ? 'Generating...' : 'Generate'}
             </button>
           </div>
         </div>
       )}
-    </button>
+    </div>
   )
 }

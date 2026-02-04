@@ -1,6 +1,5 @@
 import hashlib
 import uuid
-from datetime import datetime
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +11,7 @@ from backend.app.domains.generation.section_output_models import SectionOutput, 
 from backend.app.domains.job.models import Job, JobStatus, JobType
 from backend.app.domains.section.models import Section, SectionType
 from backend.app.domains.template.models import ParsingStatus, Template, TemplateVersion
+from backend.app.infrastructure.datetime_utils import utc_now
 from backend.app.logging_config import get_logger
 
 logger = get_logger("app.infrastructure.demo_seeding")
@@ -144,8 +144,8 @@ class DemoDataSeeder:
         template = Template(
             id=DEMO_TEMPLATE_ID,
             name=f"{DEMO_PREFIX}Advisory_Report_Template",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=utc_now(),
+            updated_at=utc_now(),
         )
         self.session.add(template)
         await self.session.flush()
@@ -160,9 +160,9 @@ class DemoDataSeeder:
             source_doc_path=f"demo/templates/{template_id}/1/source.docx",
             parsed_representation_path=f"demo/templates/{template_id}/1/parsed.json",
             parsing_status=ParsingStatus.COMPLETED,
-            parsed_at=datetime.utcnow(),
+            parsed_at=utc_now(),
             content_hash=hashlib.sha256(b"demo_content").hexdigest(),
-            created_at=datetime.utcnow(),
+            created_at=utc_now(),
         )
         self.session.add(version)
         await self.session.flush()
@@ -177,7 +177,7 @@ class DemoDataSeeder:
                 section_type=SectionType.STATIC,
                 structural_path="Title",
                 prompt_config=None,
-                created_at=datetime.utcnow(),
+                created_at=utc_now(),
             ),
             Section(
                 id=2,
@@ -191,7 +191,7 @@ class DemoDataSeeder:
                     "prompt_template": "Generate executive summary for {company_name}",
                     "generation_hints": {"tone": "professional", "length": "medium"},
                 },
-                created_at=datetime.utcnow(),
+                created_at=utc_now(),
             ),
             Section(
                 id=3,
@@ -205,7 +205,7 @@ class DemoDataSeeder:
                     "prompt_template": "Analyze market conditions for {industry}",
                     "generation_hints": {"tone": "analytical", "length": "long"},
                 },
-                created_at=datetime.utcnow(),
+                created_at=utc_now(),
             ),
             Section(
                 id=4,
@@ -213,7 +213,7 @@ class DemoDataSeeder:
                 section_type=SectionType.STATIC,
                 structural_path="Appendix",
                 prompt_config=None,
-                created_at=datetime.utcnow(),
+                created_at=utc_now(),
             ),
             Section(
                 id=5,
@@ -227,7 +227,7 @@ class DemoDataSeeder:
                     "prompt_template": "Project financials for {deal_name}",
                     "generation_hints": {"tone": "precise", "length": "medium"},
                 },
-                created_at=datetime.utcnow(),
+                created_at=utc_now(),
             ),
         ]
 
@@ -246,10 +246,10 @@ class DemoDataSeeder:
                 payload={"template_version_id": str(template_version_id)},
                 result={"parsed_blocks": 15, "content_hash": "abc123"},
                 worker_id="demo-worker",
-                started_at=datetime.utcnow(),
-                completed_at=datetime.utcnow(),
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                started_at=utc_now(),
+                completed_at=utc_now(),
+                created_at=utc_now(),
+                updated_at=utc_now(),
             ),
             Job(
                 id=uuid.UUID("00000000-0000-0000-0000-000000000011"),
@@ -258,10 +258,10 @@ class DemoDataSeeder:
                 payload={"template_version_id": str(template_version_id)},
                 result={"static_sections": 2, "dynamic_sections": 3},
                 worker_id="demo-worker",
-                started_at=datetime.utcnow(),
-                completed_at=datetime.utcnow(),
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                started_at=utc_now(),
+                completed_at=utc_now(),
+                created_at=utc_now(),
+                updated_at=utc_now(),
             ),
         ]
 
@@ -276,7 +276,7 @@ class DemoDataSeeder:
             id=DEMO_DOCUMENT_ID,
             template_version_id=template_version_id,
             current_version=1,
-            created_at=datetime.utcnow(),
+            created_at=utc_now(),
         )
         self.session.add(document)
         await self.session.flush()
@@ -291,10 +291,10 @@ class DemoDataSeeder:
             output_doc_path=f"demo/documents/{document_id}/1/output.docx",
             generation_metadata={
                 "demo": True,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": utc_now().isoformat(),
                 "sections_generated": 3,
             },
-            created_at=datetime.utcnow(),
+            created_at=utc_now(),
         )
         self.session.add(version)
         await self.session.flush()
@@ -313,7 +313,7 @@ class DemoDataSeeder:
                 entity_id=template_id,
                 action="CREATE",
                 metadata_={"name": f"{DEMO_PREFIX}Advisory_Report_Template", "demo": True},
-                timestamp=datetime.utcnow(),
+                timestamp=utc_now(),
             ),
             AuditLog(
                 entity_type="TEMPLATE_VERSION",
@@ -324,7 +324,7 @@ class DemoDataSeeder:
                     "version_number": 1,
                     "demo": True,
                 },
-                timestamp=datetime.utcnow(),
+                timestamp=utc_now(),
             ),
             AuditLog(
                 entity_type="DOCUMENT",
@@ -334,7 +334,7 @@ class DemoDataSeeder:
                     "template_version_id": str(template_version_id),
                     "demo": True,
                 },
-                timestamp=datetime.utcnow(),
+                timestamp=utc_now(),
             ),
         ]
 

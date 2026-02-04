@@ -3,9 +3,11 @@
 interface SidebarProps {
   activeTab: string
   onTabChange: (tab: string) => void
+  isOpen?: boolean
+  onClose?: () => void
 }
 
-export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
+export function Sidebar({ activeTab, onTabChange, isOpen = false, onClose }: SidebarProps) {
   const tabs = [
     { id: 'templates', label: 'Templates', icon: '📋' },
     { id: 'jobs', label: 'Jobs', icon: '⚙️' },
@@ -14,7 +16,22 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   ]
 
   return (
-    <aside className="hidden w-64 border-r border-border bg-sidebar md:flex flex-col">
+    <>
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden" 
+          onClick={onClose}
+        />
+      )}
+      
+      <aside className={`
+        fixed md:static inset-y-0 left-0 z-50
+        w-64 border-r border-border bg-sidebar flex flex-col
+        transform transition-transform duration-200 ease-in-out
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:translate-x-0
+      `}>
       <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
@@ -60,5 +77,6 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
         </div>
       </div>
     </aside>
+    </>
   )
 }

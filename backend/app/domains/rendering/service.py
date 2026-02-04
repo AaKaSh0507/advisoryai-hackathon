@@ -156,7 +156,7 @@ class DocumentRenderingService:
 
             rendered_doc = await self.repository.mark_validated(
                 rendered_doc,
-                validation_result=validation_result.model_dump(),
+                validation_result=validation_result.model_dump(mode="json"),
             )
 
             if self.generation_audit_service:

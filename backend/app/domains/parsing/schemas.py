@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.app.infrastructure.datetime_utils import utc_now
+
 
 class BlockType(str, Enum):
     PARAGRAPH = "paragraph"
@@ -173,7 +175,7 @@ class ParsedDocument(BaseModel):
     template_id: UUID
     version_number: int
     content_hash: str
-    parsed_at: datetime = Field(default_factory=datetime.utcnow)
+    parsed_at: datetime = Field(default_factory=utc_now)
     parser_version: str = "1.0.0"
     metadata: DocumentMetadata
     blocks: list[DocumentBlock] = Field(default_factory=list)

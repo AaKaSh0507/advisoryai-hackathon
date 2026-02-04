@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Sequence, cast
 from uuid import UUID
 
@@ -6,6 +5,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.domains.rendering.models import RenderedDocument, RenderStatus
+from backend.app.infrastructure.datetime_utils import utc_now
 from backend.app.logging_config import get_logger
 
 logger = get_logger("app.domains.rendering.repository")
@@ -128,7 +128,7 @@ class RenderedDocumentRepository:
         rendered_doc.headers_rendered = headers
         rendered_doc.footers_rendered = footers
         rendered_doc.rendering_duration_ms = rendering_duration_ms
-        rendered_doc.rendered_at = datetime.utcnow()
+        rendered_doc.rendered_at = utc_now()
         await self.session.flush()
         logger.info(f"Marked rendered document {rendered_doc.id} as completed")
         return rendered_doc
@@ -141,7 +141,7 @@ class RenderedDocumentRepository:
         rendered_doc.status = RenderStatus.VALIDATED
         rendered_doc.validation_result = validation_result
         rendered_doc.is_immutable = True
-        rendered_doc.validated_at = datetime.utcnow()
+        rendered_doc.validated_at = utc_now()
         await self.session.flush()
         logger.info(f"Marked rendered document {rendered_doc.id} as validated and immutable")
         return rendered_doc

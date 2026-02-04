@@ -1,6 +1,5 @@
 import hashlib
 import json
-from datetime import datetime
 from uuid import UUID
 
 from backend.app.domains.audit.generation_audit_service import GenerationAuditService
@@ -28,6 +27,7 @@ from backend.app.domains.generation.schemas import (
 )
 from backend.app.domains.section.models import Section, SectionType
 from backend.app.domains.section.repository import SectionRepository
+from backend.app.infrastructure.datetime_utils import utc_now
 from backend.app.logging_config import get_logger
 
 logger = get_logger("app.domains.generation.service")
@@ -101,7 +101,7 @@ class GenerationInputService:
             db_inputs.append(db_input)
 
         await self.generation_repo.create_inputs(db_inputs)
-        validated_at = datetime.utcnow()
+        validated_at = utc_now()
         await self.generation_repo.mark_batch_validated(batch.id, validated_at)
         refreshed_batch = await self.generation_repo.get_batch_by_id(batch.id, include_inputs=True)
         if refreshed_batch is None:

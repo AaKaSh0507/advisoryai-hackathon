@@ -14,6 +14,7 @@ export interface Template {
   dynamicSections: number
   version: number
   fileSize: string
+  templateVersionId?: string
 }
 
 export function TemplateList() {
@@ -22,6 +23,9 @@ export function TemplateList() {
   const [selectedSections, setSelectedSections] = useState<ApiSection[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState<string | null>(null)
+  const [generateSuccess, setGenerateSuccess] = useState<string | null>(null)
 
   const statusConfig = {
     pending: { label: 'Pending', icon: '⏳', color: 'text-yellow-400' },
@@ -62,11 +66,14 @@ export function TemplateList() {
           let dynamicSections = 0
           let version = 1
 
+          let templateVersionId: string | undefined
+
           try {
             const versions = await api.getTemplateVersions(t.id)
             if (versions.length > 0) {
               const latestVersion = versions[versions.length - 1]
               version = latestVersion.version_number
+              templateVersionId = latestVersion.id
 
               // Determine status based on parsing status and jobs
               const templateJobs = jobs.filter(
@@ -115,6 +122,7 @@ export function TemplateList() {
             dynamicSections,
             version,
             fileSize: '-',
+            templateVersionId,
           }
         })
       )
@@ -138,6 +146,38 @@ export function TemplateList() {
       }
     } catch {
       setSelectedSections([])
+    }
+  }
+
+  const handleGenerate = async (template: Template) => {
+    if (!template.templateVersionId) {
+      setGenerateError('Cannot generate: template version not found')
+      return
+    }
+
+    if (template.status !== 'ready') {
+      setGenerateError('Cannot generate: template is not ready. Please wait for parsing to complete.')
+      return
+    }
+
+    setGenerating(true)
+    setGenerateError(null)
+    setGenerateSuccess(null)
+
+    try {
+      await api.createDocument(template.templateVersionId)
+      setGenerateSuccess(`Document generation started! Job created for "${template.name}". Check the Jobs tab to monitor progress.`)
+      
+      // Optionally refresh to show updated status
+      setTimeout(() => {
+        loadTemplates()
+      }, 1000)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Generation failed'
+      setGenerateError(`Failed to generate document: ${errorMessage}`)
+      console.error('Generate error:', err)
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -179,26 +219,28 @@ export function TemplateList() {
   const selectedTemplateData = templates.find((t) => t.id === selectedTemplate)
 
   return (
-    <div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className="min-w-0">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {templates.map((template) => (
           <TemplateCard
             key={template.id}
             template={template}
             isSelected={selectedTemplate === template.id}
             onSelect={setSelectedTemplate}
+            onGenerate={handleGenerate}
+            generating={generating}
             statusConfig={statusConfig[template.status]}
           />
         ))}
       </div>
 
       {selectedTemplate && selectedTemplateData && (
-        <div className="mt-6 rounded-lg border border-border bg-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Template Details</h3>
+        <div className="mt-6 rounded-lg border border-border bg-card p-4 sm:p-6">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <h3 className="text-base sm:text-lg font-semibold truncate min-w-0">Template Details</h3>
             <button
               onClick={() => setSelectedTemplate(null)}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0 p-1"
             >
               ✕
             </button>
@@ -222,12 +264,12 @@ export function TemplateList() {
 
             <div className="pt-4 border-t border-border">
               <h4 className="font-semibold mb-3">Section Breakdown</h4>
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-60 overflow-y-auto">
                 {selectedSections.length > 0 ? (
                   selectedSections.map((section) => (
-                    <div key={section.id} className="flex items-center justify-between rounded-lg bg-muted/30 p-3">
-                      <span className="text-sm text-foreground">{section.structural_path}</span>
-                      <span className={`text-xs rounded-full px-2 py-1 ${
+                    <div key={section.id} className="flex items-center justify-between gap-2 rounded-lg bg-muted/30 p-3">
+                      <span className="text-sm text-foreground truncate min-w-0 flex-1">{section.structural_path}</span>
+                      <span className={`text-xs rounded-full px-2 py-1 flex-shrink-0 ${
                         section.section_type === 'DYNAMIC' 
                           ? 'bg-primary/20 text-primary' 
                           : 'bg-muted text-muted-foreground'
@@ -242,14 +284,32 @@ export function TemplateList() {
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4">
-              <button className="flex-1 rounded-lg border border-border px-4 py-2 font-medium text-foreground hover:bg-muted transition-all">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <button className="flex-1 rounded-lg border border-border px-4 py-2 font-medium text-foreground hover:bg-muted transition-all text-sm sm:text-base">
                 Download Template
               </button>
-              <button className="flex-1 rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground hover:opacity-90 transition-all">
-                Generate Document
+              <button 
+                onClick={() => handleGenerate(selectedTemplateData)}
+                disabled={generating || selectedTemplateData.status !== 'ready'}
+                className="flex-1 rounded-lg bg-primary px-4 py-2 font-medium text-primary-foreground hover:opacity-90 transition-all text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {generating ? 'Generating...' : 'Generate Document'}
               </button>
             </div>
+
+            {generateError && (
+              <div className="mt-4 rounded-lg border border-red-500/50 bg-red-500/10 p-3 flex items-center justify-between">
+                <p className="text-sm text-red-400">{generateError}</p>
+                <button onClick={() => setGenerateError(null)} className="text-red-400 hover:text-red-300 ml-2">✕</button>
+              </div>
+            )}
+
+            {generateSuccess && (
+              <div className="mt-4 rounded-lg border border-green-500/50 bg-green-500/10 p-3 flex items-center justify-between">
+                <p className="text-sm text-green-400">{generateSuccess}</p>
+                <button onClick={() => setGenerateSuccess(null)} className="text-green-400 hover:text-green-300 ml-2">✕</button>
+              </div>
+            )}
           </div>
         </div>
       )}

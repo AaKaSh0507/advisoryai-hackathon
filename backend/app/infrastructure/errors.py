@@ -15,6 +15,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.app.infrastructure.datetime_utils import utc_now
+
 
 class ErrorCategory(str, PyEnum):
     """High-level error categories for classification."""
@@ -80,7 +82,7 @@ class StructuredError(BaseModel):
     retry_count: int = 0
     max_retries: int = 3
 
-    occurred_at: datetime = Field(default_factory=datetime.utcnow)
+    occurred_at: datetime = Field(default_factory=utc_now)
 
     model_config = ConfigDict(from_attributes=True)
 

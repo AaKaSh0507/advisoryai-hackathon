@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.infrastructure.database import Base
+from backend.app.infrastructure.datetime_utils import utc_now
 
 
 class ParsingStatus(str, PyEnum):
@@ -23,9 +24,11 @@ class Template(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
     )
 
     versions: Mapped[list["TemplateVersion"]] = relationship(
@@ -48,10 +51,12 @@ class TemplateVersion(Base):
         default=ParsingStatus.PENDING,
     )
     parsing_error: Mapped[str | None] = mapped_column(String, nullable=True)
-    parsed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    parsed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)  # SHA-256 hash
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
 
     template: Mapped["Template"] = relationship("Template", back_populates="versions")
 

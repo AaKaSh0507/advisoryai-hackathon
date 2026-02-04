@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.app.infrastructure.database import Base
+from backend.app.infrastructure.datetime_utils import utc_now
 
 
 class SectionType(str, PyEnum):
@@ -29,4 +30,6 @@ class Section(Base):
     )
     structural_path: Mapped[str] = mapped_column(String, nullable=False)
     prompt_config: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )

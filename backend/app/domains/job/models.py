@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.app.infrastructure.database import Base
+from backend.app.infrastructure.datetime_utils import utc_now
 
 
 class JobType(str, PyEnum):
@@ -61,12 +62,14 @@ class Job(Base):
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     worker_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
     )
 
     __table_args__ = (
@@ -82,7 +85,7 @@ class Job(Base):
         if not self.can_transition_to(new_status):
             raise InvalidJobTransitionError(self.id, self.status, new_status)
         self.status = new_status
-        self.updated_at = datetime.utcnow()
+        self.updated_at = utc_now()
 
     @property
     def is_terminal(self) -> bool:

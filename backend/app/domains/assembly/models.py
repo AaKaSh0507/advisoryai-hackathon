@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.app.infrastructure.database import Base
+from backend.app.infrastructure.datetime_utils import utc_now
 
 
 class AssemblyStatus(str, PyEnum):
@@ -54,9 +55,11 @@ class AssembledDocument(Base):
     error_message: Mapped[str | None] = mapped_column(String, nullable=True)
     assembly_duration_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
     is_immutable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    assembled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    validated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    assembled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index("ix_assembled_documents_document", "document_id"),

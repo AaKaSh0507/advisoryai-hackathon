@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.infrastructure.database import Base
+from backend.app.infrastructure.datetime_utils import utc_now
 
 
 class SectionGenerationStatus(str, PyEnum):
@@ -51,8 +52,10 @@ class SectionOutputBatch(Base):
     completed_sections: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     failed_sections: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_immutable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     outputs: Mapped[list["SectionOutput"]] = relationship(
         "SectionOutput",
@@ -110,9 +113,11 @@ class SectionOutput(Base):
     validation_result: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     generation_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
     is_immutable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    validated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     batch: Mapped["SectionOutputBatch"] = relationship(
         "SectionOutputBatch", back_populates="outputs"

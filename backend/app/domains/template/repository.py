@@ -1,12 +1,12 @@
 import uuid
 from collections.abc import Sequence
-from datetime import datetime
 from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.domains.template.models import ParsingStatus, Template, TemplateVersion
+from backend.app.infrastructure.datetime_utils import utc_now
 
 
 class TemplateRepository:
@@ -87,7 +87,7 @@ class TemplateRepository:
         version.parsing_error = error
 
         if status == ParsingStatus.COMPLETED:
-            version.parsed_at = datetime.utcnow()
+            version.parsed_at = utc_now()
             if parsed_path:
                 version.parsed_representation_path = parsed_path
             if content_hash:

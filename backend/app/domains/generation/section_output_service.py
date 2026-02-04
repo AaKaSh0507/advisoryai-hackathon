@@ -1,5 +1,4 @@
 import hashlib
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -33,6 +32,7 @@ from backend.app.domains.generation.validation_schemas import (
     StructuralValidationConfig,
 )
 from backend.app.domains.generation.validation_service import GenerationValidationService
+from backend.app.infrastructure.datetime_utils import utc_now
 from backend.app.logging_config import get_logger
 
 logger = get_logger("app.domains.generation.section_output_service")
@@ -311,7 +311,7 @@ class SectionGenerationService:
             "attempt": attempt_number,
             "error_code": error_code,
             "error_message": error_message,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": utc_now().isoformat(),
         }
         await self.output_repo.increment_retry_count(
             output_id=output.id,
@@ -392,7 +392,7 @@ class SectionGenerationService:
             content_hash=content_hash,
             validation_result=validation_data,
             metadata=metadata,
-            completed_at=datetime.utcnow(),
+            completed_at=utc_now(),
         )
 
         return SectionGenerationResult(
@@ -426,7 +426,7 @@ class SectionGenerationService:
                 output_id=output.id,
                 error_message=f"Retry exhausted after {attempt_number + 1} attempts: {error_msg}",
                 metadata=metadata,
-                completed_at=datetime.utcnow(),
+                completed_at=utc_now(),
             )
 
         return SectionGenerationResult(
@@ -474,7 +474,7 @@ class SectionGenerationService:
                 error_message=error_msg,
                 error_code=error_code,
                 metadata=metadata,
-                completed_at=datetime.utcnow(),
+                completed_at=utc_now(),
             )
 
         return SectionGenerationResult(
@@ -506,7 +506,7 @@ class SectionGenerationService:
             output_id=output.id,
             error_message=error_msg,
             metadata=metadata,
-            completed_at=datetime.utcnow(),
+            completed_at=utc_now(),
         )
 
         return SectionGenerationResult(
@@ -530,7 +530,7 @@ class SectionGenerationService:
             error_message=error_msg,
             error_code="MISSING_INPUT",
             metadata=metadata,
-            completed_at=datetime.utcnow(),
+            completed_at=utc_now(),
         )
 
         return SectionGenerationResult(
@@ -559,7 +559,7 @@ class SectionGenerationService:
             error_message=error_str,
             error_code="UNEXPECTED_ERROR",
             metadata=metadata,
-            completed_at=datetime.utcnow(),
+            completed_at=utc_now(),
         )
 
         return SectionGenerationResult(

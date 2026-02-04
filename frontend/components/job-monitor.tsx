@@ -12,6 +12,9 @@ export interface Job {
   startedAt: string
   updatedAt: string
   error?: string
+  // For GENERATE jobs, populated from result
+  documentId?: string
+  versionNumber?: number
 }
 
 function formatTimeAgo(dateString: string): string {
@@ -34,6 +37,8 @@ export function JobMonitor() {
   const [selectedFilter, setSelectedFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [downloadingJobId, setDownloadingJobId] = useState<string | null>(null)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
 
   const loadJobs = useCallback(async () => {
     try {
@@ -69,6 +74,10 @@ export function JobMonitor() {
         if (j.status === 'COMPLETED') progress = 100
         else if (j.status === 'RUNNING') progress = 50
         else if (j.status === 'FAILED') progress = j.result ? 50 : 20
+
+        // Extract document info from result for completed GENERATE jobs
+        const documentId = (j.result?.document_id as string) || (j.payload?.document_id as string)
+        const versionNumber = j.result?.version_number as number | undefined
         
         return {
           id: j.id,
@@ -81,6 +90,8 @@ export function JobMonitor() {
           startedAt: j.started_at ? formatTimeAgo(j.started_at) : formatTimeAgo(j.created_at),
           updatedAt: formatTimeAgo(j.updated_at),
           error: j.error || undefined,
+          documentId,
+          versionNumber,
         }
       })
 
@@ -98,6 +109,38 @@ export function JobMonitor() {
     const interval = setInterval(loadJobs, 5000)
     return () => clearInterval(interval)
   }, [loadJobs])
+
+  const handleDownload = async (job: Job) => {
+    if (!job.documentId || !job.versionNumber) {
+      setDownloadError(`Cannot download: missing document information for job ${job.id}`)
+      return
+    }
+
+    setDownloadingJobId(job.id)
+    setDownloadError(null)
+
+    try {
+      const blob = await api.downloadDocument(job.documentId, job.versionNumber)
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${job.templateName.replace(/[^a-zA-Z0-9]/g, '_')}_v${job.versionNumber}.docx`
+      document.body.appendChild(link)
+      link.click()
+      
+      // Cleanup
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Download failed'
+      setDownloadError(`Failed to download: ${errorMessage}`)
+      console.error('Download error:', err)
+    } finally {
+      setDownloadingJobId(null)
+    }
+  }
 
   useEffect(() => {
     if (selectedFilter === 'all') {
@@ -144,6 +187,17 @@ export function JobMonitor() {
 
   return (
     <div className="space-y-6">
+      {downloadError && (
+        <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-4 flex items-center justify-between">
+          <p className="text-sm text-red-400">{downloadError}</p>
+          <button
+            onClick={() => setDownloadError(null)}
+            className="text-red-400 hover:text-red-300 ml-4"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       <div className="flex gap-2 overflow-x-auto pb-2">
         {filters.map((filter) => (
           <button
@@ -174,17 +228,17 @@ export function JobMonitor() {
             const statusConfig = getStatusConfig(job.status)
             return (
               <div key={job.id} className="rounded-lg border border-border bg-card p-4 hover:border-primary/50 transition-all">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-foreground">{job.templateName}</h3>
-                      <span className={`text-xs font-medium px-2 py-1 rounded ${statusConfig.bgColor} ${statusConfig.color}`}>
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold text-foreground truncate">{job.templateName}</h3>
+                      <span className={`text-xs font-medium px-2 py-1 rounded flex-shrink-0 ${statusConfig.bgColor} ${statusConfig.color}`}>
                         {job.type}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">Job ID: {job.id}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1 truncate">Job ID: {job.id}</p>
                   </div>
-                  <div className={`px-3 py-1 rounded-lg font-medium text-sm ${statusConfig.bgColor} ${statusConfig.color}`}>
+                  <div className={`px-3 py-1 rounded-lg font-medium text-sm flex-shrink-0 self-start ${statusConfig.bgColor} ${statusConfig.color}`}>
                     {statusConfig.label}
                   </div>
                 </div>
@@ -220,13 +274,27 @@ export function JobMonitor() {
                 )}
 
                 {job.status === 'COMPLETED' && (
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-3 flex flex-col sm:flex-row gap-2">
                     <button className="flex-1 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted transition-all">
                       View Details
                     </button>
-                    <button className="flex-1 rounded-lg bg-primary/20 text-primary px-3 py-2 text-sm font-medium hover:bg-primary/30 transition-all">
-                      Download Output
-                    </button>
+                    {job.type === 'GENERATE' && job.documentId && job.versionNumber ? (
+                      <button
+                        onClick={() => handleDownload(job)}
+                        disabled={downloadingJobId === job.id}
+                        className="flex-1 rounded-lg bg-primary/20 text-primary px-3 py-2 text-sm font-medium hover:bg-primary/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {downloadingJobId === job.id ? 'Downloading...' : 'Download Output'}
+                      </button>
+                    ) : job.type === 'GENERATE' ? (
+                      <button
+                        disabled
+                        className="flex-1 rounded-lg bg-muted text-muted-foreground px-3 py-2 text-sm font-medium cursor-not-allowed"
+                        title="Document not available"
+                      >
+                        Download Output
+                      </button>
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -238,7 +306,7 @@ export function JobMonitor() {
       {jobs.length > 0 && (
         <div className="rounded-lg border border-border bg-card p-4">
           <h3 className="font-semibold mb-3">Job Statistics</h3>
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Total Jobs</p>
               <p className="text-2xl font-bold text-foreground">{jobs.length}</p>

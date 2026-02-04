@@ -1,7 +1,6 @@
 import io
 import re
 import time
-from datetime import datetime
 from uuid import UUID
 
 from docx import Document
@@ -32,6 +31,7 @@ from backend.app.domains.parsing.schemas import (
     generate_block_id,
     generate_content_hash,
 )
+from backend.app.infrastructure.datetime_utils import utc_now
 from backend.app.logging_config import get_logger
 
 logger = get_logger("app.domains.parsing.parser")
@@ -79,7 +79,7 @@ class WordDocumentParser:
                 template_id=template_id,
                 version_number=version_number,
                 content_hash=content_hash,
-                parsed_at=datetime.utcnow(),
+                parsed_at=utc_now(),
                 metadata=metadata,
                 blocks=blocks,
                 headers=headers,

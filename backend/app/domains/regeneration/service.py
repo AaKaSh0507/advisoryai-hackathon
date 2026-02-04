@@ -1,18 +1,5 @@
-"""
-Regeneration service for section-level and full document regeneration.
-
-Provides:
-- Section-level regeneration with content reuse
-- Full document regeneration
-- Template version update handling
-- Audit trail for all regeneration operations
-
-All operations create new immutable versions; history is never mutated.
-"""
-
 import hashlib
 import json
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -39,13 +26,13 @@ from backend.app.domains.regeneration.schemas import (
 from backend.app.domains.section.models import Section, SectionType
 from backend.app.domains.section.repository import SectionRepository
 from backend.app.domains.template.repository import TemplateRepository
+from backend.app.infrastructure.datetime_utils import utc_now
 from backend.app.logging_config import get_logger
 
 logger = get_logger("app.domains.regeneration.service")
 
 
 class RegenerationError(Exception):
-    """Base exception for regeneration errors."""
 
     def __init__(self, message: str, code: str, details: dict[str, Any] | None = None):
         super().__init__(message)
@@ -55,7 +42,6 @@ class RegenerationError(Exception):
 
 
 class DocumentNotFoundError(RegenerationError):
-    """Document not found for regeneration."""
 
     def __init__(self, document_id: UUID):
         super().__init__(
@@ -66,7 +52,6 @@ class DocumentNotFoundError(RegenerationError):
 
 
 class NoVersionExistsError(RegenerationError):
-    """No version exists to regenerate from."""
 
     def __init__(self, document_id: UUID):
         super().__init__(
@@ -77,7 +62,6 @@ class NoVersionExistsError(RegenerationError):
 
 
 class SectionNotFoundError(RegenerationError):
-    """Target section not found."""
 
     def __init__(self, section_id: int, document_id: UUID):
         super().__init__(
@@ -88,7 +72,6 @@ class SectionNotFoundError(RegenerationError):
 
 
 class StaticSectionError(RegenerationError):
-    """Cannot regenerate static section."""
 
     def __init__(self, section_id: int):
         super().__init__(
@@ -99,7 +82,6 @@ class StaticSectionError(RegenerationError):
 
 
 class TemplateVersionMismatchError(RegenerationError):
-    """Template version mismatch during regeneration."""
 
     def __init__(self, document_id: UUID, expected: UUID, actual: UUID):
         super().__init__(
@@ -114,15 +96,6 @@ class TemplateVersionMismatchError(RegenerationError):
 
 
 class RegenerationService:
-    """
-    Service for controlled regeneration of documents and sections.
-
-    All regeneration operations:
-    - Create new immutable versions
-    - Preserve historical data
-    - Maintain audit trail
-    - Support deterministic replay
-    """
 
     def __init__(
         self,
@@ -144,15 +117,7 @@ class RegenerationService:
         self,
         request: SectionRegenerationRequest,
     ) -> RegenerationResult:
-        """
-        Regenerate specific sections of a document.
-
-        - Only DYNAMIC sections can be regenerated
-        - Unchanged sections are reused (REUSE_UNCHANGED strategy)
-        - Creates a new document version
-        - Preserves all previous versions
-        """
-        started_at = datetime.utcnow()
+        started_at = utc_now()
         correlation_id = request.correlation_id or self._generate_correlation_id()
 
         logger.info(
@@ -245,7 +210,7 @@ class RegenerationService:
                 correlation_id=correlation_id,
             )
 
-            completed_at = datetime.utcnow()
+            completed_at = utc_now()
 
             status = RegenerationStatus.COMPLETED
             if failed_count > 0:
@@ -295,7 +260,7 @@ class RegenerationService:
                 error=e.message,
                 error_details=e.details,
                 started_at=started_at,
-                completed_at=datetime.utcnow(),
+                completed_at=utc_now(),
                 correlation_id=correlation_id,
             )
         except Exception as e:
@@ -313,7 +278,7 @@ class RegenerationService:
                 status=RegenerationStatus.FAILED,
                 error=f"Unexpected error: {str(e)}",
                 started_at=started_at,
-                completed_at=datetime.utcnow(),
+                completed_at=utc_now(),
                 correlation_id=correlation_id,
             )
 
@@ -321,15 +286,7 @@ class RegenerationService:
         self,
         request: FullRegenerationRequest,
     ) -> RegenerationResult:
-        """
-        Regenerate entire document.
-
-        - Re-executes full pipeline: generation, validation, assembly, rendering, versioning
-        - Creates a new document version
-        - Previous versions remain untouched
-        - Idempotent and restart-safe
-        """
-        started_at = datetime.utcnow()
+        started_at = utc_now()
         correlation_id = request.correlation_id or self._generate_correlation_id()
 
         logger.info(
@@ -374,7 +331,7 @@ class RegenerationService:
                 correlation_id=correlation_id,
             )
 
-            completed_at = datetime.utcnow()
+            completed_at = utc_now()
 
             logger.info(
                 f"Full regeneration prepared for document {request.document_id}, "
@@ -414,7 +371,7 @@ class RegenerationService:
                 error=e.message,
                 error_details=e.details,
                 started_at=started_at,
-                completed_at=datetime.utcnow(),
+                completed_at=utc_now(),
                 correlation_id=correlation_id,
             )
         except Exception as e:
@@ -430,7 +387,7 @@ class RegenerationService:
                 status=RegenerationStatus.FAILED,
                 error=f"Unexpected error: {str(e)}",
                 started_at=started_at,
-                completed_at=datetime.utcnow(),
+                completed_at=utc_now(),
                 correlation_id=correlation_id,
             )
 
@@ -438,14 +395,7 @@ class RegenerationService:
         self,
         request: TemplateUpdateRegenerationRequest,
     ) -> RegenerationResult:
-        """
-        Regenerate document using a new template version.
-
-        - Document is regenerated with new template structure
-        - Previous versions tied to old template remain untouched
-        - Audit captures template version transition
-        """
-        started_at = datetime.utcnow()
+        started_at = utc_now()
         correlation_id = request.correlation_id or self._generate_correlation_id()
 
         logger.info(
@@ -499,7 +449,7 @@ class RegenerationService:
                 correlation_id=correlation_id,
             )
 
-            completed_at = datetime.utcnow()
+            completed_at = utc_now()
 
             logger.info(
                 f"Template update regeneration prepared for document {request.document_id}, "
@@ -539,7 +489,7 @@ class RegenerationService:
                 error=e.message,
                 error_details=e.details,
                 started_at=started_at,
-                completed_at=datetime.utcnow(),
+                completed_at=utc_now(),
                 correlation_id=correlation_id,
             )
         except Exception as e:
@@ -555,7 +505,7 @@ class RegenerationService:
                 status=RegenerationStatus.FAILED,
                 error=f"Unexpected error: {str(e)}",
                 started_at=started_at,
-                completed_at=datetime.utcnow(),
+                completed_at=utc_now(),
                 correlation_id=correlation_id,
             )
 
@@ -564,7 +514,6 @@ class RegenerationService:
         document_id: UUID,
         limit: int = 100,
     ) -> list[VersionTransition]:
-        """Get regeneration history for a document."""
         logs = await self.audit_repo.query(
             entity_type="DOCUMENT",
             entity_id=document_id,
@@ -600,7 +549,6 @@ class RegenerationService:
         return transitions
 
     async def _get_document(self, document_id: UUID) -> Document:
-        """Get document or raise error."""
         document = await self.document_repo.get_by_id(document_id)
         if not document:
             raise DocumentNotFoundError(document_id)
@@ -612,7 +560,6 @@ class RegenerationService:
         section_map: dict[int, Section],
         document_id: UUID,
     ) -> list[SectionRegenerationTarget]:
-        """Validate all target sections exist and are dynamic."""
         validated = []
         for target in targets:
             section = section_map.get(target.section_id)
@@ -628,7 +575,6 @@ class RegenerationService:
         document_id: UUID,
         version_intent: int,
     ) -> SectionOutputBatch | None:
-        """Get the output batch for a specific version."""
         return await self.section_output_repo.get_batch_by_document_version(
             document_id,
             version_intent,
@@ -642,7 +588,6 @@ class RegenerationService:
         override: dict[str, Any] | None,
         previous_batch: SectionOutputBatch | None,
     ) -> bool:
-        """Determine if section content would change with new inputs."""
         if not previous_batch or not previous_batch.outputs:
             return True
 
@@ -675,12 +620,6 @@ class RegenerationService:
         target_overrides: dict[int, dict[str, Any] | None],
         new_version_intent: int,
     ) -> list[RegenerationSectionResult]:
-        """
-        Process section regeneration.
-
-        Note: Actual LLM generation is handled by the generation pipeline.
-        This method prepares the regeneration metadata and tracks what will be done.
-        """
         results = []
 
         for section_id in sections_to_regenerate:
@@ -748,7 +687,6 @@ class RegenerationService:
         reused_sections: list[int],
         correlation_id: str,
     ) -> list[UUID]:
-        """Create audit log entry for regeneration."""
         metadata = {
             "scope": scope.value,
             "intent": intent.value,
@@ -781,7 +719,6 @@ class RegenerationService:
         regenerated_sections: list[int],
         correlation_id: str,
     ) -> list[UUID]:
-        """Create audit log for template version transition."""
         metadata = {
             "scope": RegenerationScope.FULL.value,
             "intent": RegenerationIntent.TEMPLATE_UPDATE.value,
@@ -807,13 +744,11 @@ class RegenerationService:
         return [created_log.id]
 
     def _generate_correlation_id(self) -> str:
-        """Generate a unique correlation ID for tracing."""
         import uuid
 
         return f"regen-{uuid.uuid4().hex[:12]}"
 
     def _compute_input_hash(self, section_id: int, client_data: dict[str, Any]) -> str:
-        """Compute hash of generation inputs for change detection."""
         data = {
             "section_id": section_id,
             "client_data": client_data,

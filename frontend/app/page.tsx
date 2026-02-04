@@ -11,20 +11,29 @@ import { JobMonitor } from '@/components/job-monitor'
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('templates')
   const [showUpload, setShowUpload] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="flex">
-        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+    <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+      <div className="flex relative">
+        <Sidebar 
+          activeTab={activeTab} 
+          onTabChange={(tab) => {
+            setActiveTab(tab)
+            setSidebarOpen(false)
+          }} 
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
         
-        <main className="flex-1">
-          <DashboardHeader />
+        <main className="flex-1 min-w-0 w-full">
+          <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
           
-          <div className="p-6 lg:p-8">
+          <div className="p-4 sm:p-6 lg:p-8">
             {activeTab === 'templates' && (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <div>
-                  <h1 className="text-3xl font-bold text-balance">Templates</h1>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-balance">Templates</h1>
                   <p className="mt-2 text-muted-foreground">Upload and manage Word document templates for AI-driven generation</p>
                 </div>
 
@@ -49,22 +58,22 @@ export default function DashboardPage() {
             )}
 
             {activeTab === 'jobs' && (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <div>
-                  <h1 className="text-3xl font-bold text-balance">Processing Jobs</h1>
-                  <p className="mt-2 text-muted-foreground">Monitor template parsing, classification, and document generation</p>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-balance">Processing Jobs</h1>
+                  <p className="mt-2 text-sm sm:text-base text-muted-foreground">Monitor template parsing, classification, and document generation</p>
                 </div>
                 <JobMonitor />
               </div>
             )}
 
             {activeTab === 'documents' && (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <div>
-                  <h1 className="text-3xl font-bold text-balance">Generated Documents</h1>
-                  <p className="mt-2 text-muted-foreground">View and download completed documents with all sections filled</p>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-balance">Generated Documents</h1>
+                  <p className="mt-2 text-sm sm:text-base text-muted-foreground">View and download completed documents with all sections filled</p>
                 </div>
-                <div className="rounded-lg border border-border bg-card p-8 text-center">
+                <div className="rounded-lg border border-border bg-card p-6 sm:p-8 text-center">
                   <svg className="mx-auto h-12 w-12 text-muted-foreground opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
@@ -75,10 +84,10 @@ export default function DashboardPage() {
             )}
 
             {activeTab === 'settings' && (
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <div>
-                  <h1 className="text-3xl font-bold text-balance">Settings</h1>
-                  <p className="mt-2 text-muted-foreground">Configure system preferences and integration settings</p>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-balance">Settings</h1>
+                  <p className="mt-2 text-sm sm:text-base text-muted-foreground">Configure system preferences and integration settings</p>
                 </div>
                 <div className="rounded-lg border border-border bg-card p-6">
                   <h2 className="text-lg font-semibold mb-4">API Configuration</h2>

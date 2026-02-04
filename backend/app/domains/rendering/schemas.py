@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.app.infrastructure.datetime_utils import utc_now
+
 
 class RenderErrorCode(str, PyEnum):
     INVALID_ASSEMBLED_DOCUMENT = "INVALID_ASSEMBLED_DOCUMENT"
@@ -45,7 +47,7 @@ class RenderingValidationResult(BaseModel):
     error_codes: list[RenderErrorCode] = Field(default_factory=list)
     error_messages: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
-    validated_at: datetime = Field(default_factory=datetime.utcnow)
+    validated_at: datetime = Field(default_factory=utc_now)
     file_size_bytes: int = 0
     block_count: int = 0
     paragraph_count: int = 0
@@ -95,7 +97,7 @@ class RenderedDocumentSchema(BaseModel):
     validation_result: RenderingValidationResult | None = None
     is_immutable: bool = False
     rendered_at: datetime | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=utc_now)
 
     def compute_content_hash(self, content: bytes) -> str:
         return hashlib.sha256(content).hexdigest()

@@ -394,9 +394,11 @@ class DocumentAssemblyService:
             await self.repository.mark_completed(
                 assembled_doc_id=assembled_doc.id,
                 assembled_structure={"blocks": assembly_result["assembled_blocks"]},
-                injection_results=[r.model_dump() for r in assembly_result["injection_results"]],
-                validation_result=assembly_result["validation_result"].model_dump(),
-                metadata=parsed_doc.metadata.model_dump() if parsed_doc.metadata else {},
+                injection_results=[
+                    r.model_dump(mode="json") for r in assembly_result["injection_results"]
+                ],
+                validation_result=assembly_result["validation_result"].model_dump(mode="json"),
+                metadata=parsed_doc.metadata.model_dump(mode="json") if parsed_doc.metadata else {},
                 headers=[self.content_injector._serialize_block(h) for h in parsed_doc.headers],
                 footers=[self.content_injector._serialize_block(f) for f in parsed_doc.footers],
                 total_blocks=len(assembly_result["assembled_blocks"]),

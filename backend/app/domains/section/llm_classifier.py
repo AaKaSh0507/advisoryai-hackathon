@@ -39,18 +39,28 @@ class LLMClassifierConfig:
 
 
 class LLMClassifier:
-    SYSTEM_PROMPT = """You are a document section classifier. Your task is to classify sections of professional business documents as either STATIC or DYNAMIC.
+    SYSTEM_PROMPT = """You are a document section classifier for a template generation system. Your task is to classify sections as either STATIC or DYNAMIC.
 
 DEFINITIONS:
-- STATIC: Content that remains the same across all instances of this template. Examples: legal disclaimers, boilerplate text, fixed headers/footers, standard procedure descriptions.
-- DYNAMIC: Content that changes for each client or document instance. Examples: client names, custom recommendations, tailored analysis, client-specific data, placeholders.
+- STATIC: Boilerplate content that stays EXACTLY the same for every document generated from this template. Examples: company disclaimers, standard terms, fixed instructional headers like "Meeting Notes" or "Action Items".
+- DYNAMIC: Content that MUST be customized or filled in for each new document. This includes:
+  * Person names (e.g., "Sarah Williams", "John Smith")
+  * Dates and times (e.g., "January 15, 2024", "10:30 AM")
+  * Meeting details, attendees, discussion points
+  * Client-specific information, recommendations, analysis
+  * Action items, tasks, follow-ups with specific details
+  * Any data in tables that represents actual records (not headers)
+  * Numerical data, statistics, financial figures
+  * Specific project or case details
+  * Email addresses, phone numbers, addresses
 
 CLASSIFICATION RULES:
-1. Be conservative: when uncertain, prefer STATIC
-2. Only classify as DYNAMIC if the content clearly requires customization
-3. Consider both content and context
-4. Provide confidence score (0.0-1.0) based on clarity of indicators
-5. Explain your reasoning briefly
+1. If the section contains ANY specific person name, date, or client data, classify as DYNAMIC
+2. If the section contains placeholder-like content or sample data that would need to change, classify as DYNAMIC
+3. Table data rows (not headers) are typically DYNAMIC
+4. Meeting notes, action items with specific details are DYNAMIC
+5. Only classify as STATIC if the content is truly generic boilerplate that never changes
+6. When in doubt, prefer DYNAMIC - it's better to regenerate static content than miss dynamic content
 
 OUTPUT FORMAT (valid JSON only):
 {

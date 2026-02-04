@@ -13,6 +13,7 @@ from backend.app.domains.generation.section_output_models import (
     SectionOutput,
     SectionOutputBatch,
 )
+from backend.app.infrastructure.datetime_utils import utc_now
 
 
 class SectionOutputRepository:
@@ -192,7 +193,7 @@ class SectionOutputRepository:
 
         if completed_sections + failed_sections >= batch.total_sections:
             batch.status = SectionGenerationStatus.COMPLETED
-            batch.completed_at = datetime.utcnow()
+            batch.completed_at = utc_now()
             batch.is_immutable = True
 
         await self.session.flush()

@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.infrastructure.database import Base
+from backend.app.infrastructure.datetime_utils import utc_now
 
 
 class GenerationInputStatus(str, PyEnum):
@@ -37,8 +38,10 @@ class GenerationInputBatch(Base):
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     total_inputs: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_immutable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
-    validated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
+    validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_message: Mapped[str | None] = mapped_column(String, nullable=True)
 
     inputs: Mapped[list["GenerationInput"]] = relationship(
@@ -84,7 +87,9 @@ class GenerationInput(Base):
     client_data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     surrounding_context: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     input_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, nullable=False
+    )
 
     batch: Mapped["GenerationInputBatch"] = relationship(
         "GenerationInputBatch", back_populates="inputs"

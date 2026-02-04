@@ -1,11 +1,12 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional, Sequence, cast
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.domains.job.models import Job, JobStatus, JobType
+from backend.app.infrastructure.datetime_utils import utc_now
 
 
 class JobRepository:
@@ -75,8 +76,8 @@ class JobRepository:
         if job:
             job.status = JobStatus.RUNNING
             job.worker_id = worker_id
-            job.started_at = datetime.utcnow()
-            job.updated_at = datetime.utcnow()
+            job.started_at = utc_now()
+            job.updated_at = utc_now()
             await self.session.flush()
 
         return job
@@ -88,8 +89,8 @@ class JobRepository:
 
         job.status = JobStatus.COMPLETED
         job.result = result
-        job.completed_at = datetime.utcnow()
-        job.updated_at = datetime.utcnow()
+        job.completed_at = utc_now()
+        job.updated_at = utc_now()
         await self.session.flush()
         return job
 
@@ -100,13 +101,13 @@ class JobRepository:
 
         job.status = JobStatus.FAILED
         job.error = error
-        job.completed_at = datetime.utcnow()
-        job.updated_at = datetime.utcnow()
+        job.completed_at = utc_now()
+        job.updated_at = utc_now()
         await self.session.flush()
         return job
 
     async def find_stuck_jobs(self, timeout_minutes: int = 30) -> Sequence[Job]:
-        threshold = datetime.utcnow() - timedelta(minutes=timeout_minutes)
+        threshold = utc_now() - timedelta(minutes=timeout_minutes)
         stmt = select(Job).where(
             and_(
                 Job.status == JobStatus.RUNNING,
@@ -125,7 +126,7 @@ class JobRepository:
         job.worker_id = None
         job.started_at = None
         job.error = f"Reset: {reason}"
-        job.updated_at = datetime.utcnow()
+        job.updated_at = utc_now()
         await self.session.flush()
         return job
 

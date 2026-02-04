@@ -74,7 +74,7 @@ export function UploadZone({ onClose }: UploadZoneProps) {
   }
 
   return (
-    <div className="rounded-lg border border-dashed border-border bg-muted/30 p-8 lg:p-12">
+    <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 sm:p-8 lg:p-12">
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -90,14 +90,14 @@ export function UploadZone({ onClose }: UploadZoneProps) {
         {!isUploading ? (
           <>
             <div className="flex justify-center mb-4">
-              <div className="rounded-full bg-primary/10 p-4">
-                <svg className="h-8 w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="rounded-full bg-primary/10 p-3 sm:p-4">
+                <svg className="h-6 w-6 sm:h-8 sm:w-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                 </svg>
               </div>
             </div>
-            <h3 className="text-lg font-semibold text-foreground">Drop your Word template here</h3>
-            <p className="mt-2 text-muted-foreground">or</p>
+            <h3 className="text-base sm:text-lg font-semibold text-foreground">Drop your Word template here</h3>
+            <p className="mt-2 text-sm text-muted-foreground">or</p>
             <label className="mt-4 inline-block">
               <span className="text-primary font-medium cursor-pointer hover:underline">browse your computer</span>
               <input type="file" accept=".docx,.doc" className="hidden" onChange={(e) => e.target.files && handleFiles(e.target.files)} />
@@ -132,14 +132,14 @@ export function UploadZone({ onClose }: UploadZoneProps) {
       </div>
 
       {!isUploading && (
-        <div className="mt-6 pt-6 border-t border-border flex justify-end gap-3">
+        <div className="mt-6 pt-6 border-t border-border flex flex-col-reverse sm:flex-row justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg font-medium text-foreground border border-border hover:bg-muted transition-all"
+            className="px-4 py-2 rounded-lg font-medium text-foreground border border-border hover:bg-muted transition-all w-full sm:w-auto"
           >
             Cancel
           </button>
-          <label className="px-4 py-2 rounded-lg font-medium text-primary-foreground bg-primary cursor-pointer hover:opacity-90 transition-all">
+          <label className="px-4 py-2 rounded-lg font-medium text-primary-foreground bg-primary cursor-pointer hover:opacity-90 transition-all text-center w-full sm:w-auto">
             Select File
             <input type="file" accept=".docx,.doc" className="hidden" onChange={(e) => e.target.files && handleFiles(e.target.files)} />
           </label>
