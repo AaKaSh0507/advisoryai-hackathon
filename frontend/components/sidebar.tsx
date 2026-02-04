@@ -1,5 +1,8 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
+import { api } from '@/lib/api';
+
 interface SidebarProps {
   activeTab: string
   onTabChange: (tab: string) => void
@@ -8,6 +11,29 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activeTab, onTabChange, isOpen = false, onClose }: SidebarProps) {
+  const [templateCount, setTemplateCount] = useState<number | null>(null)
+  const [pendingJobsCount, setPendingJobsCount] = useState<number | null>(null)
+
+  const loadStats = useCallback(async () => {
+    try {
+      const [templates, jobs] = await Promise.all([
+        api.getTemplates(),
+        api.getJobs()
+      ])
+      setTemplateCount(templates.length)
+      setPendingJobsCount(jobs.filter(j => j.status === 'PENDING' || j.status === 'RUNNING').length)
+    } catch {
+      // Silently fail - stats are not critical
+    }
+  }, [])
+
+  useEffect(() => {
+    loadStats()
+    // Refresh stats every 10 seconds
+    const interval = setInterval(loadStats, 10000)
+    return () => clearInterval(interval)
+  }, [loadStats])
+
   const tabs = [
     { id: 'templates', label: 'Templates', icon: '📋' },
     { id: 'jobs', label: 'Jobs', icon: '⚙️' },
@@ -67,11 +93,15 @@ export function Sidebar({ activeTab, onTabChange, isOpen = false, onClose }: Sid
           <div className="mt-3 space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-sidebar-foreground/60">Active Templates</span>
-              <span className="font-semibold text-sidebar-foreground">12</span>
+              <span className="font-semibold text-sidebar-foreground">
+                {templateCount !== null ? templateCount : '...'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-sidebar-foreground/60">Pending Jobs</span>
-              <span className="font-semibold text-sidebar-foreground">3</span>
+              <span className="font-semibold text-sidebar-foreground">
+                {pendingJobsCount !== null ? pendingJobsCount : '...'}
+              </span>
             </div>
           </div>
         </div>
