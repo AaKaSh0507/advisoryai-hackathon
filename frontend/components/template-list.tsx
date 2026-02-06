@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { TemplateCard } from './template-card'
-import { api, ApiTemplate, ApiSection, ApiJob } from '@/lib/api'
+import { api, ApiTemplate, ApiSection, ApiJob } from '../lib/api'
 
 export interface Template {
   id: string
