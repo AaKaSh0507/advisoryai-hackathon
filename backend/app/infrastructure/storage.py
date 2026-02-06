@@ -15,12 +15,13 @@ logger = get_logger("app.infrastructure.storage")
 
 class StorageService:
     def __init__(self, settings: Settings):
-        config = Config(connect_timeout=2, read_timeout=2, retries={"max_attempts": 1})
+        config = Config(connect_timeout=5, read_timeout=10, retries={"max_attempts": 2})
         self.client = boto3.client(
             "s3",
             endpoint_url=settings.s3_endpoint_url,
             aws_access_key_id=settings.s3_access_key,
             aws_secret_access_key=settings.s3_secret_key,
+            region_name=settings.s3_region,
             config=config,
         )
         self.bucket_name = settings.s3_bucket_name

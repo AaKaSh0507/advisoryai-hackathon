@@ -1,14 +1,58 @@
+# Python
 __pycache__
 *.pyc
 *.pyo
 *.pyd
 .Python
+*.egg-info
+.eggs
+
+# Virtual environments
 env
 venv
+.venv
+
+# Environment files (secrets)
 .env
-.env.example
+.env.*
+!.env.example
+
+# Git
 .git
 .gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Logs and databases
 logs
+*.log
 dump.rdb
+
+# Documentation
 README.md
+*.md
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov
+backend/coverage
+backend/tests
+
+# Frontend (not needed for backend image)
+frontend
+node_modules
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Misc
+.mypy_cache
+.pre-commit-config.yaml
+Makefile

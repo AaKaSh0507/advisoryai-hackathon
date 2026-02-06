@@ -1,14 +1,15 @@
 #!/bin/bash
 set -e
 
-COMMAND=$1
+COMMAND=${1:-api}
+PORT=${PORT:-8000}
 
 case "$COMMAND" in
     api)
         echo "Running migrations..."
         cd backend && alembic upgrade head && cd ..
-        echo "Starting API..."
-        exec uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+        echo "Starting API on port $PORT..."
+        exec uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
         ;;
     worker)
         echo "Starting Worker..."

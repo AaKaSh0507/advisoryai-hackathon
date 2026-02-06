@@ -40,10 +40,19 @@ class Settings(BaseSettings):
         ...,
         description="S3 bucket name",
     )
+    s3_region: str = Field(
+        default="auto",
+        description="S3 region (use 'auto' for Cloudflare R2)",
+    )
 
     log_dir: str = Field(
         default="./logs",
         description="Directory for log files",
+    )
+
+    cors_origins: str = Field(
+        default="http://localhost:3000",
+        description="Comma-separated list of allowed CORS origins",
     )
 
     openai_api_key: str | None = Field(
