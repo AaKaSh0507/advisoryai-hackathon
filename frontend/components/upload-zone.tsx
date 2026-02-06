@@ -3,7 +3,7 @@
 import React from "react"
 
 import { useState } from 'react'
-import { api } from '@/lib/api'
+import { api } from '../lib/api'
 
 interface UploadZoneProps {
   onClose: () => void
