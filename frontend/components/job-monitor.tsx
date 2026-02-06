@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { api, ApiJob, ApiTemplate } from '../lib/api'
+import { api, ApiJob, ApiTemplate } from '@/lib/api'
 
 export interface Job {
   id: string
