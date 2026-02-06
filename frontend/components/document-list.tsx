@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { api, ApiDocument, ApiDocumentVersion } from '../lib/api'
+import { api, ApiDocument, ApiDocumentVersion } from '@/lib/api'
 
 interface DocumentWithDetails {
   id: string
