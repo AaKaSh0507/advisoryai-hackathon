@@ -5,15 +5,19 @@ services:
   # Backend API Service
   - type: web
     name: template-intelligence-api
-    runtime: docker
-    dockerfilePath: ./Dockerfile
-    dockerCommand: api
+    runtime: python
+    pythonVersion: "3.11.4"
+    rootDir: .
+    buildCommand: pip install -r requirements.txt
+    startCommand: cd backend && alembic upgrade head && cd .. && uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT
     region: oregon  # Choose: oregon, frankfurt, singapore, ohio
     plan: starter  # starter, standard, pro
     healthCheckPath: /health
     envVars:
       - key: APP_ENV
         value: production
+      - key: PYTHON_VERSION
+        value: "3.11.4"
       - key: DATABASE_URL
         sync: false  # Set manually - NeonDB connection string
       - key: REDIS_URL
@@ -38,14 +42,18 @@ services:
   # Background Worker Service (optional - for async jobs)
   - type: worker
     name: template-intelligence-worker
-    runtime: docker
-    dockerfilePath: ./Dockerfile
-    dockerCommand: worker
+    runtime: python
+    pythonVersion: "3.11.4"
+    rootDir: .
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m backend.app.worker.main
     region: oregon
     plan: starter
     envVars:
       - key: APP_ENV
         value: production
+      - key: PYTHON_VERSION
+        value: "3.11.4"
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
