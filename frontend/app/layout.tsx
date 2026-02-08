@@ -1,7 +1,6 @@
 import React from "react"
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 const geist = Geist({ 
@@ -45,7 +44,6 @@ export default function RootLayout({
     <html lang="en" className="overflow-x-hidden">
       <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased overflow-x-hidden`}>
         {children}
-        <Analytics />
       </body>
     </html>
   )
