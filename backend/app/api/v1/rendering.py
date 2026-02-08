@@ -12,7 +12,9 @@ from backend.app.domains.rendering.schemas import (
     RenderingValidationResult,
 )
 from backend.app.domains.rendering.service import DocumentRenderingService
+from backend.app.logging_config import get_logger
 
+logger = get_logger("app.api.v1.rendering")
 router = APIRouter()
 RenderingServiceDep = Annotated[DocumentRenderingService, Depends(get_rendering_service)]
 
@@ -125,18 +127,27 @@ async def download_rendered_document(
     version: int,
     service: RenderingServiceDep,
 ) -> Response:
+    logger.info(f"Download request for document {document_id} version {version}")
+
     content = await service.get_rendered_content(document_id, version)
     if not content:
+        logger.error(f"Content not found for document {document_id} version {version}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Rendered document not found for document {document_id} version {version}",
+            detail=f"Rendered document not found for document {document_id} version {version}. The document may not have been rendered yet or the file may not exist in storage.",
         )
+
+    logger.info(
+        f"Successfully returning {len(content)} bytes for document {document_id} version {version}"
+    )
 
     return Response(
         content=content,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={
-            "Content-Disposition": f"attachment; filename=document_{document_id}_v{version}.docx"
+            "Content-Disposition": f"attachment; filename=document_{document_id}_v{version}.docx",
+            "Content-Length": str(len(content)),
+            "Access-Control-Expose-Headers": "Content-Disposition",
         },
     )
 

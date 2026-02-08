@@ -45,6 +45,22 @@ class RuleBasedClassifier:
             0.90,
             "Fixed contact information",
         ),
+        (
+            re.compile(
+                r"^(meeting notes?|action items?|agenda|attendees?|date|time|location|subject|discussion|notes?):?\s*$",
+                re.IGNORECASE,
+            ),
+            0.92,
+            "Section heading or label (static structure)",
+        ),
+        (
+            re.compile(
+                r"^(executive summary|introduction|background|overview|conclusion|recommendations?|next steps):?\s*$",
+                re.IGNORECASE,
+            ),
+            0.90,
+            "Document section heading (static structure)",
+        ),
     ]
     DYNAMIC_PATTERNS = [
         (

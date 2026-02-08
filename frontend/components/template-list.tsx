@@ -149,6 +149,33 @@ export function TemplateList() {
     }
   }
 
+  const handleDownloadTemplate = async (template: Template) => {
+    if (!template.templateVersionId) {
+      setGenerateError('Template version not available')
+      return
+    }
+
+    try {
+      const blob = await api.downloadTemplate(template.id, template.version)
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${template.name.replace(/[^a-zA-Z0-9]/g, '_')}_v${template.version}.docx`
+      document.body.appendChild(link)
+      link.click()
+      
+      // Cleanup
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Download failed'
+      setGenerateError(`Failed to download template: ${errorMessage}`)
+      console.error('Template download error:', err)
+    }
+  }
+
   const handleGenerate = async (template: Template) => {
     if (!template.templateVersionId) {
       setGenerateError('Cannot generate: template version not found')
@@ -285,7 +312,11 @@ export function TemplateList() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <button className="flex-1 rounded-lg border border-border px-4 py-2 font-medium text-foreground hover:bg-muted transition-all text-sm sm:text-base">
+              <button 
+                onClick={() => handleDownloadTemplate(selectedTemplateData)}
+                className="flex-1 rounded-lg border border-border px-4 py-2 font-medium text-foreground hover:bg-muted transition-all text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!selectedTemplateData.templateVersionId}
+              >
                 Download Template
               </button>
               <button 

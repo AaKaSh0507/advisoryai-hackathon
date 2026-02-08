@@ -369,5 +369,7 @@ def is_demo_entity(entity_id: uuid.UUID) -> bool:
     }
     demo_ids.update(DEMO_SECTION_IDS.values())
     for job in DEMO_JOBS.values():
-        demo_ids.add(job["id"])
+        job_id = job["id"]
+        if isinstance(job_id, uuid.UUID):
+            demo_ids.add(job_id)
     return entity_id in demo_ids

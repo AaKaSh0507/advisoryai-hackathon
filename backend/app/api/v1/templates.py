@@ -1,7 +1,7 @@
 from typing import Annotated, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 
 from backend.app.api.deps import get_job_service, get_template_service
 from backend.app.config import get_settings
@@ -221,3 +221,53 @@ async def get_parsing_status(
         "content_hash": version.content_hash,
         "is_parsed": version.is_parsed,
     }
+
+
+@router.get("/{template_id}/versions/{version_number}/download")
+async def download_template_source(
+    template_id: UUID,
+    version_number: int,
+    service: TemplateServiceDep,
+) -> Response:
+    """Download the original template source file (.docx)"""
+    version = await service.repo.get_version(template_id, version_number)
+    if not version:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Version {version_number} not found for template {template_id}",
+        )
+
+    if not version.source_doc_path:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Template source file not found",
+        )
+
+    settings = get_settings()
+    storage = StorageService(settings)
+    content = storage.get_template_source(template_id, version_number)
+
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Template source file not found in storage",
+        )
+
+    # Get template name for filename
+    template = await service.get_template(template_id)
+    filename = (
+        f"{template.name}_v{version_number}.docx"
+        if template
+        else f"template_{template_id}_v{version_number}.docx"
+    )
+    filename = filename.replace(" ", "_")
+
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Content-Length": str(len(content)),
+            "Access-Control-Expose-Headers": "Content-Disposition",
+        },
+    )

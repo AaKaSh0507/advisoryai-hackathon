@@ -31,20 +31,15 @@ COPY --from=builder /root/.local /root/.local
 COPY backend backend
 COPY backend/entrypoint.sh entrypoint.sh
 
-# Create non-root user for security and set permissions
-RUN useradd -m -u 1000 appuser && \
-    chmod +x entrypoint.sh && \
-    chown -R appuser:appuser /app && \
-    mkdir -p /tmp/logs && chown appuser:appuser /tmp/logs
+# Set permissions for entrypoint
+RUN chmod +x entrypoint.sh && \
+    mkdir -p /tmp/logs
 
 # Set environment variables
 ENV PYTHONPATH=/app \
     PYTHONUNBUFFERED=1 \
-    PATH=/root/.local/bin:$PATH \
-    PORT=8000
-
-# Switch to non-root user
-USER appuser
+    PORT=8000 \
+    PATH=/root/.local/bin:$PATH
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \

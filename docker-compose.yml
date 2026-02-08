@@ -93,6 +93,7 @@ services:
       OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL:-https://api.openai.com/v1}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       LLM_INFERENCE_ENABLED: ${LLM_INFERENCE_ENABLED:-false}
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
     ports:
       - "8000:8000"
     volumes:
@@ -132,6 +133,7 @@ services:
       OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL:-https://api.openai.com/v1}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       LLM_INFERENCE_ENABLED: ${LLM_INFERENCE_ENABLED:-false}
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
     volumes:
       - ./logs:/app/logs
     depends_on:

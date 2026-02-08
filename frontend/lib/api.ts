@@ -132,6 +132,18 @@ class ApiService {
     return this.request<ApiTemplateVersion[]>(`/api/v1/templates/${templateId}/versions`);
   }
 
+  async downloadTemplate(templateId: string, versionNumber: number): Promise<Blob> {
+    const url = `${this.baseUrl}/api/v1/templates/${templateId}/versions/${versionNumber}/download`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Download failed' }));
+      throw new Error(error.detail || `HTTP error ${response.status}`);
+    }
+
+    return response.blob();
+  }
+
   // Jobs
   async getJobs(): Promise<ApiJob[]> {
     return this.request<ApiJob[]>('/api/v1/jobs');

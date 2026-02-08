@@ -204,9 +204,26 @@ class DocumentRenderingService:
 
     async def get_rendered_content(self, document_id: UUID, version: int) -> bytes | None:
         rendered = await self.repository.get_by_document_and_version(document_id, version)
-        if not rendered or not rendered.output_path:
+        if not rendered:
+            logger.warning(
+                f"No rendered document found for document {document_id} version {version}"
+            )
             return None
-        return self.storage.get_file(rendered.output_path)
+        if not rendered.output_path:
+            logger.warning(f"Rendered document {rendered.id} has no output_path")
+            return None
+
+        logger.info(f"Fetching rendered content from storage path: {rendered.output_path}")
+        content = self.storage.get_file(rendered.output_path)
+
+        if content is None:
+            logger.error(
+                f"Failed to retrieve content from storage for path: {rendered.output_path}"
+            )
+        else:
+            logger.info(f"Successfully retrieved {len(content)} bytes from storage")
+
+        return content
 
     async def validate_existing_render(
         self, rendered_doc_id: UUID

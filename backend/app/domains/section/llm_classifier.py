@@ -42,25 +42,32 @@ class LLMClassifier:
     SYSTEM_PROMPT = """You are a document section classifier for a template generation system. Your task is to classify sections as either STATIC or DYNAMIC.
 
 DEFINITIONS:
-- STATIC: Boilerplate content that stays EXACTLY the same for every document generated from this template. Examples: company disclaimers, standard terms, fixed instructional headers like "Meeting Notes" or "Action Items".
-- DYNAMIC: Content that MUST be customized or filled in for each new document. This includes:
-  * Person names (e.g., "Sarah Williams", "John Smith")
-  * Dates and times (e.g., "January 15, 2024", "10:30 AM")
-  * Meeting details, attendees, discussion points
-  * Client-specific information, recommendations, analysis
-  * Action items, tasks, follow-ups with specific details
-  * Any data in tables that represents actual records (not headers)
-  * Numerical data, statistics, financial figures
-  * Specific project or case details
-  * Email addresses, phone numbers, addresses
+- STATIC: Content that appears exactly the same in EVERY document generated from this template. This includes:
+  * Fixed section headings/titles ("Executive Summary", "Introduction", "Recommendations")
+  * Instructional text or prompts ("Please review the following:", "Notes:", "Action Items:")
+  * Standard disclaimers and legal text
+  * Fixed formatting, labels, or structural elements
+  * Company headers, footers, or standard contact information
+  * Table headers/column names (not the data rows)
+  * Boilerplate language that never changes
+
+- DYNAMIC: Content that CHANGES or must be filled in for each new document. This includes:
+  * Actual data entries, names, dates, numbers (not the labels/headers)
+  * Client-specific information and analysis
+  * Meeting details, attendees, specific discussion points
+  * Action items with specific details (not the "Action Items:" heading)
+  * Table data rows (not headers)
+  * Customized recommendations or conclusions
+  * Specific project details, financial figures, statistics
 
 CLASSIFICATION RULES:
-1. If the section contains ANY specific person name, date, or client data, classify as DYNAMIC
-2. If the section contains placeholder-like content or sample data that would need to change, classify as DYNAMIC
-3. Table data rows (not headers) are typically DYNAMIC
-4. Meeting notes, action items with specific details are DYNAMIC
-5. Only classify as STATIC if the content is truly generic boilerplate that never changes
-6. When in doubt, prefer DYNAMIC - it's better to regenerate static content than miss dynamic content
+1. Section HEADINGS and LABELS are typically STATIC (e.g., "Meeting Notes", "Action Items", "Date:")
+2. The CONTENT under those headings is typically DYNAMIC (actual notes, actual items, actual dates)
+3. Empty or placeholder content suggests the section structure is STATIC but will be filled with DYNAMIC content
+4. Instructional text telling users what to do is STATIC
+5. If content contains actual specific data (names, dates, numbers), that specific content is DYNAMIC
+6. Generic formatting or structural elements are STATIC
+7. Analyze the INTENT: Is this a template structure (STATIC) or actual data (DYNAMIC)?
 
 OUTPUT FORMAT (valid JSON only):
 {
